@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="DSA Focus Dashboard — Maximize your productivity while solving data structures and algorithms problems.">
+    <title>DSA Focus Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700;12..96,800&family=Hanken+Grotesk:wght@400;500;600;700&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Toast Notification Container -->
+    <div id="toast-container" aria-live="polite"></div>
+
+    <!-- Top Bar -->
+    <header class="topbar">
+        <div class="wrap header-wrap">
+            <div class="header-left">
+                <div class="mark">DSA<span>·</span>FOCUS</div>
+                <nav class="nav-tabs">
+                    <button class="tab-btn active" id="tab-dashboard">Dashboard</button>
+                    <button class="tab-btn" id="tab-log">Spreadsheet Log</button>
+                    <button class="tab-btn" id="btn-theme-toggle" title="Toggle dark/light theme">🌙 Dark Mode</button>
+                </nav>
+            </div>
+            
+            <div class="progress-container">
+                <div class="progress-info">
+                    <span>Daily Goal</span>
+                    <span id="progress-text">0/10</span>
+                </div>
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fill" id="daily-progress"></div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Dashboard View -->
+    <main class="wrap dashboard" id="dashboard-view">
+        <!-- Left Panel: Problem Form -->
+        <aside class="panel left-panel">
+            <div class="card problem-form" id="problem-form-card">
+                <div class="eyebrow">Workspace</div>
+                <h2>Current Problem</h2>
+                <form id="problem-form" autocomplete="off">
+                    <div class="form-group">
+                        <label for="p-name">Problem Name</label>
+                        <input type="text" id="p-name" placeholder="e.g. Two Sum" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="p-url">Problem Link (URL)</label>
+                        <input type="text" id="p-url" placeholder="e.g. https://leetcode.com/problems/...">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="p-platform">Platform</label>
+                            <input type="text" id="p-platform" placeholder="LeetCode, etc." required>
+                        </div>
+                        <div class="form-group">
+                            <label for="p-difficulty">Difficulty</label>
+                            <select id="p-difficulty">
+                                <option value="Easy">Easy</option>
+                                <option value="Medium" selected>Medium</option>
+                                <option value="Hard">Hard</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="p-topic">Topic</label>
+                        <input type="text" id="p-topic" placeholder="e.g. Binary Search, DP">
+                    </div>
+                    <div class="form-group">
+                        <label for="p-notes">Notes</label>
+                        <textarea id="p-notes" placeholder="Approaches, complexities, edge cases..."></textarea>
+                    </div>
+                    <div class="form-checkboxes">
+                        <label class="checkbox-label" for="p-hint">
+                            <input type="checkbox" id="p-hint">
+                            Used Hint?
+                        </label>
+                        <label class="checkbox-label" for="p-independent">
+                            <input type="checkbox" id="p-independent" checked>
+                            Solved Independently?
+                        </label>
+                        <label class="checkbox-label" for="p-revision">
+                            <input type="checkbox" id="p-revision">
+                            Needs Revision?
+                        </label>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn primary" id="btn-save-problem">
+                            Save Problem
+                        </button>
+                        <button type="button" class="btn secondary" id="btn-clear-form">
+                            Clear
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </aside>
+
+        <!-- Center Panel: Timer -->
+        <section class="panel center-panel">
+            <div class="card timer-card">
+                <div class="timer-header">
+                    <div>
+                        <div class="eyebrow" id="session-indicator">Focus Session</div>
+                        <h2>Timer</h2>
+                    </div>
+                    <label class="toggle-pomodoro" title="Auto-switch 20m Focus / 5m Break">
+                        <input type="checkbox" id="pomodoro-toggle">
+                        <span class="toggle-slider"></span>
+                        <span class="toggle-label">Pomodoro</span>
+                    </label>
+                </div>
+                
+                <div class="timer-display-container">
+                    <svg class="progress-ring" width="200" height="200" viewBox="0 0 200 200">
+                        <circle class="progress-ring__bg" stroke-width="5" fill="transparent" r="90" cx="100" cy="100"/>
+                        <circle class="progress-ring__circle" id="timer-ring" stroke-width="5" fill="transparent" r="90" cx="100" cy="100"/>
+                    </svg>
+                    <div class="time-text" id="countdown-display">20:00</div>
+                </div>
+
+                <div class="timer-controls">
+                    <button class="btn icon-btn" id="btn-sub-5" title="Sub 5 minutes">−5m</button>
+                    <button class="btn primary large" id="btn-start-pause">Start</button>
+                    <button class="btn secondary large" id="btn-reset-timer">Reset</button>
+                    <button class="btn icon-btn" id="btn-add-5" title="Add 5 minutes">+5m</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Right Panel: Performance stats only -->
+        <aside class="panel right-panel">
+            <div class="card stats-grid-card">
+                <div class="eyebrow">Statistics</div>
+                <h2>Daily Performance</h2>
+                
+                <!-- DSA Progress Widget -->
+                <div class="dsa-progress-box">
+                    <div class="dsa-progress-header">
+                        <span class="dsa-progress-badge">DSA Progress</span>
+                    </div>
+                    <div class="dsa-progress-body">
+                        <div class="dsa-ring-wrapper">
+                            <svg class="dsa-ring-svg" width="110" height="110" viewBox="0 0 100 100">
+                                <circle class="dsa-ring-bg" stroke-width="8" fill="transparent" r="40" cx="50" cy="50"/>
+                                <circle class="dsa-ring-easy" id="dsa-arc-easy" stroke-width="8" fill="transparent" r="40" cx="50" cy="50"/>
+                                <circle class="dsa-ring-medium" id="dsa-arc-medium" stroke-width="8" fill="transparent" r="40" cx="50" cy="50"/>
+                                <circle class="dsa-ring-hard" id="dsa-arc-hard" stroke-width="8" fill="transparent" r="40" cx="50" cy="50"/>
+                            </svg>
+                            <div class="dsa-ring-center">
+                                <span class="dsa-total-num" id="stat-total">0</span>
+                                <span class="dsa-total-line"></span>
+                                <span class="dsa-total-label">Solved</span>
+                            </div>
+                        </div>
+                        <div class="dsa-diff-list">
+                            <div class="diff-item">
+                                <div class="diff-left">
+                                    <span class="diff-dot easy"></span>
+                                    <span class="diff-name">Easy</span>
+                                </div>
+                                <span class="diff-val" id="stat-easy">0</span>
+                            </div>
+                            <div class="diff-item">
+                                <div class="diff-left">
+                                    <span class="diff-dot medium"></span>
+                                    <span class="diff-name">Medium</span>
+                                </div>
+                                <span class="diff-val" id="stat-medium">0</span>
+                            </div>
+                            <div class="diff-item">
+                                <div class="diff-left">
+                                    <span class="diff-dot hard"></span>
+                                    <span class="diff-name">Hard</span>
+                                </div>
+                                <span class="diff-val" id="stat-hard">0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stats-grid grid-4">
+                    <div class="stat-box" data-accent="sage">
+                        <div class="stat-value" id="stat-today">0</div>
+                        <div class="stat-label">Solved Today</div>
+                    </div>
+                    <div class="stat-box" data-accent="blue">
+                        <div class="stat-value" id="stat-time">0m</div>
+                        <div class="stat-label">Today's Focus</div>
+                    </div>
+                    <div class="stat-box" data-accent="orange">
+                        <div class="stat-value" id="stat-avg">0m</div>
+                        <div class="stat-label">Avg Time</div>
+                    </div>
+                    <div class="stat-box" data-accent="orange-deep">
+                        <div class="stat-value streak" id="stat-streak">0</div>
+                        <div class="stat-label">Streak (days)</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </main>
+
+    <!-- Spreadsheet Log View (Separate Page Tab) -->
+    <section class="wrap log-section hidden" id="log-view">
+        <div class="card spreadsheet-card">
+            <div class="spreadsheet-header">
+                <div>
+                    <div class="eyebrow">Tracker</div>
+                    <h2>Solved Problem Spreadsheet</h2>
+                </div>
+                <div class="spreadsheet-actions">
+                    <button class="btn secondary" id="btn-export-csv">💾 Export CSV</button>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <div class="spreadsheet-filters">
+                <div class="filter-group search-group">
+                    <label for="filter-search">Search</label>
+                    <input type="text" id="filter-search" placeholder="Search by name, platform, topic...">
+                </div>
+                <div class="filter-group">
+                    <label for="filter-difficulty">Difficulty</label>
+                    <select id="filter-difficulty">
+                        <option value="All">All Difficulties</option>
+                        <option value="Easy">Easy</option>
+                        <option value="Medium">Medium</option>
+                        <option value="Hard">Hard</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="filter-revision">Revision Required?</label>
+                    <select id="filter-revision">
+                        <option value="All">All</option>
+                        <option value="Yes">Needs Revision</option>
+                        <option value="No">No Revision</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Spreadsheet Table Container -->
+            <div class="table-container">
+                <table class="spreadsheet-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 110px;">Date</th>
+                            <th>Problem Name</th>
+                            <th style="width: 100px;">Platform</th>
+                            <th style="width: 100px;">Difficulty</th>
+                            <th>Topic</th>
+                            <th style="width: 110px;">Time Spent</th>
+                            <th style="width: 80px;">Hint?</th>
+                            <th style="width: 80px;">Solo?</th>
+                            <th style="width: 90px;">Revise?</th>
+                            <th>Notes</th>
+                            <th style="width: 130px;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="spreadsheet-body">
+                        <!-- Rows injected dynamically -->
+                    </tbody>
+                </table>
+                <p class="empty-state" id="spreadsheet-empty">No matching problems found.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer / Keyboard Shortcuts -->
+    <footer>
+        <div class="wrap footer-wrap">
+            <div>
+                <p class="big">DSA Focus Dashboard</p>
+                <p>Designed for distraction-free, highly analytical practice sessions. Store data locally in your browser.</p>
+            </div>
+            <div class="shortcuts-bar">
+                <div class="shortcut"><kbd>Space</kbd> Start/Pause</div>
+                <div class="shortcut"><kbd>R</kbd> Reset</div>
+                <div class="shortcut"><kbd>N</kbd> New Problem</div>
+                <div class="shortcut"><kbd>Ctrl</kbd>+<kbd>S</kbd> Save</div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Notification Modal -->
+    <div id="notification-modal" class="modal hidden" role="dialog" aria-modal="true">
+        <div class="modal-content">
+            <div class="modal-icon">⏰</div>
+            <h2>Time's Up!</h2>
+            <p id="motivational-quote">"Progress beats perfection."</p>
+            <p class="sub-text">Either take a hint or move on to the next step.</p>
+            <button class="btn primary" id="btn-close-modal">Continue</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
