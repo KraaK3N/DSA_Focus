@@ -248,16 +248,25 @@ class FocusTimer {
     }
 
     adjustTime(seconds) {
+        const prevTimeLeft = this.timeLeft;
         this.timeLeft += seconds;
-        if (this.timeLeft > this.totalDuration) {
-            this.totalDuration = this.timeLeft;
+
+        if (this.isRunning) {
+            this._timeLeftAtStart += seconds;
         }
-        // Save the new duration as the user's preferred duration
+
+        this.totalDuration = Math.max(60, this.totalDuration + seconds);
         if (!this.isBreak) {
-            this.lastSetDuration = Math.max(60, this.timeLeft);
+            this.lastSetDuration = Math.max(60, this.lastSetDuration + seconds);
         }
+
         this.updateDisplay();
         this.pushToBackend();
+
+        // Trigger alert if manually adjusted to/below zero
+        if (prevTimeLeft > 0 && this.timeLeft <= 0) {
+            this.triggerAlert();
+        }
     }
 
     triggerAlert() {
@@ -311,12 +320,511 @@ class FocusTimer {
     }
 }
 
+/* ─── 4.5. Notion-Style Scratchpad ───────────────────────── */
+class Scratchpad {
+    constructor() {
+        this.editor = document.getElementById('scratchpad-editor');
+        this.slashMenu = document.getElementById('scratchpad-slash-menu');
+        this.btnClear = document.getElementById('btn-scratch-clear');
+        this.menuItems = Array.from(this.slashMenu.querySelectorAll('.slash-item'));
+        
+        this.selectedIndex = 0;
+        this.menuOpen = false;
+        this.saveTimeout = null;
+        this.commandRange = null;
+        this.activeBlock = null;
+        this.visibleItems = [];
+
+        this.init();
+    }
+
+    async init() {
+        this.bindEvents();
+        await this.loadContent();
+    }
+
+    bindEvents() {
+        // Debounced save on typing / input
+        this.editor.addEventListener('input', () => {
+            this.handleInput();
+            this.autoSave();
+        });
+
+        // Click delegation for checkboxes
+        this.editor.addEventListener('click', (e) => {
+            if (e.target.classList.contains('scratch-todo-checkbox')) {
+                const row = e.target.closest('.scratch-todo-row');
+                if (row) {
+                    if (e.target.checked) {
+                        row.classList.add('checked');
+                        e.target.setAttribute('checked', 'checked');
+                    } else {
+                        row.classList.remove('checked');
+                        e.target.removeAttribute('checked');
+                    }
+                    this.saveContent();
+                }
+            }
+        });
+
+        // Keyboard navigation, Enter & Backspace formatting handling
+        this.editor.addEventListener('keydown', (e) => {
+            if (this.menuOpen) {
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    this.navigateMenu(1);
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    this.navigateMenu(-1);
+                } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const selectedItem = this.menuItems[this.selectedIndex];
+                    if (selectedItem) {
+                        const cmd = selectedItem.getAttribute('data-cmd');
+                        this.executeCommand(cmd);
+                    }
+                } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    this.closeMenu();
+                }
+                return;
+            }
+
+            // Custom Enter Key Handling inside list items
+            if (e.key === 'Enter') {
+                const selection = window.getSelection();
+                if (selection.rangeCount > 0) {
+                    const block = this.getCurrentBlock();
+                    if (block) {
+                        const todoRow = block.closest('.scratch-todo-row');
+                        const bulletRow = block.closest('.scratch-bullet-row');
+                        
+                        if (todoRow) {
+                            e.preventDefault();
+                            const newTodo = document.createElement('div');
+                            newTodo.className = 'scratch-todo-row';
+                            newTodo.innerHTML = `
+                                <input type="checkbox" class="scratch-todo-checkbox">
+                                <span class="scratch-todo-text" contenteditable="true" data-placeholder="Task..."></span>
+                            `;
+                            todoRow.parentNode.insertBefore(newTodo, todoRow.nextSibling);
+                            this.setCaretToEnd(newTodo.querySelector('.scratch-todo-text'));
+                            this.saveContent();
+                            return;
+                        }
+                        
+                        if (bulletRow) {
+                            e.preventDefault();
+                            const newBullet = document.createElement('div');
+                            newBullet.className = 'scratch-bullet-row';
+                            newBullet.setAttribute('data-placeholder', 'List item...');
+                            newBullet.textContent = '';
+                            bulletRow.parentNode.insertBefore(newBullet, bulletRow.nextSibling);
+                            this.setCaretToEnd(newBullet);
+                            this.saveContent();
+                            return;
+                        }
+                    }
+                }
+            }
+
+            // Custom Backspace Handling for converting list items back to normal blocks
+            if (e.key === 'Backspace') {
+                const selection = window.getSelection();
+                if (selection.rangeCount > 0) {
+                    const block = this.getCurrentBlock();
+                    if (block) {
+                        const todoRow = block.closest('.scratch-todo-row');
+                        const bulletRow = block.closest('.scratch-bullet-row');
+                        
+                        if (todoRow) {
+                            const text = todoRow.querySelector('.scratch-todo-text').textContent;
+                            if (text.length === 0) {
+                                e.preventDefault();
+                                const newBlock = document.createElement('div');
+                                newBlock.innerHTML = '&nbsp;';
+                                todoRow.parentNode.replaceChild(newBlock, todoRow);
+                                this.setCaretToEnd(newBlock);
+                                this.saveContent();
+                                return;
+                            }
+                        }
+                        
+                        if (bulletRow) {
+                            const text = bulletRow.textContent.replace(/\s/g, '');
+                            if (text.length === 0) {
+                                e.preventDefault();
+                                const newBlock = document.createElement('div');
+                                newBlock.innerHTML = '&nbsp;';
+                                bulletRow.parentNode.replaceChild(newBlock, bulletRow);
+                                this.setCaretToEnd(newBlock);
+                                this.saveContent();
+                                return;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Inline Markdown-like Auto-conversions on Space key press
+            if (e.key === ' ') {
+                const selection = window.getSelection();
+                if (selection.rangeCount > 0) {
+                    const range = selection.getRangeAt(0);
+                    const block = this.getCurrentBlock();
+                    if (block) {
+                        const blockText = block.innerText || block.textContent || "";
+                        const textBeforeCursor = blockText.slice(0, range.startOffset).trim();
+
+                        if (textBeforeCursor === '[]' || textBeforeCursor === '- [ ]') {
+                            e.preventDefault();
+                            this.executeCommand('todo');
+                        } else if (textBeforeCursor === '-') {
+                            e.preventDefault();
+                            this.executeCommand('bullet');
+                        } else if (textBeforeCursor === '#') {
+                            e.preventDefault();
+                            this.executeCommand('h1');
+                        } else if (textBeforeCursor === '##') {
+                            e.preventDefault();
+                            this.executeCommand('h2');
+                        } else if (textBeforeCursor === '---') {
+                            e.preventDefault();
+                            this.executeCommand('divider');
+                        }
+                    }
+                }
+            }
+        });
+
+        // Clear board button
+        this.btnClear.addEventListener('click', () => {
+            if (confirm("Are you sure you want to clear the scratch board?")) {
+                this.editor.innerHTML = '';
+                this.saveContent();
+            }
+        });
+
+        // Handle slash menu options with mousedown (to prevent focus loss) and click
+        this.menuItems.forEach((item) => {
+            item.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+            });
+            item.addEventListener('click', () => {
+                const cmd = item.getAttribute('data-cmd');
+                this.executeCommand(cmd);
+            });
+        });
+
+        // Close slash menu when clicking outside of the editor or menu
+        document.addEventListener('click', (e) => {
+            if (!this.editor.contains(e.target) && !this.slashMenu.contains(e.target)) {
+                this.closeMenu();
+            }
+        });
+    }
+
+    async loadContent() {
+        try {
+            const response = await fetch('http://localhost:3000/api/kv/scratchpad');
+            if (response.ok) {
+                const data = await response.json();
+                if (data && data.value) {
+                    this.editor.innerHTML = data.value;
+                    return;
+                }
+            }
+        } catch (err) {
+            console.warn('Failed to load scratchpad from server, falling back to localStorage:', err);
+        }
+
+        const saved = localStorage.getItem('dsa_scratchpad');
+        if (saved) {
+            this.editor.innerHTML = saved;
+        }
+    }
+
+    autoSave() {
+        clearTimeout(this.saveTimeout);
+        this.saveTimeout = setTimeout(() => this.saveContent(), 1000);
+    }
+
+    async saveContent() {
+        const html = this.editor.innerHTML;
+        localStorage.setItem('dsa_scratchpad', html);
+
+        try {
+            await fetch('http://localhost:3000/api/kv/scratchpad', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ value: html })
+            });
+        } catch (err) {
+            // ignore network save errors
+        }
+    }
+
+    handleInput() {
+        const selection = window.getSelection();
+        if (!selection || selection.rangeCount === 0 || !this.editor.contains(selection.anchorNode)) {
+            this.closeMenu();
+            return;
+        }
+
+        const range = selection.getRangeAt(0);
+        const textBeforeCaret = this.getTextBeforeCaret(range);
+
+        if (/^\s*\/[a-z0-9-]*$/i.test(textBeforeCaret)) {
+            this.commandRange = range.cloneRange();
+            this.openMenu();
+            
+            const queryMatch = textBeforeCaret.match(/\/([a-z0-9-]*)$/i);
+            const query = queryMatch ? queryMatch[1].toLowerCase() : '';
+            this.filterMenu(query);
+        } else if (this.menuOpen) {
+            this.closeMenu();
+        }
+    }
+
+    openMenu() {
+        this.menuOpen = true;
+        this.selectedIndex = 0;
+        this.updateMenuHighlight();
+        this.activeBlock = this.getCurrentBlock();
+
+        const selection = window.getSelection();
+        if (selection.rangeCount > 0) {
+            const range = selection.getRangeAt(0);
+            const rect = range.getBoundingClientRect();
+            const containerRect = this.editor.parentElement.getBoundingClientRect();
+
+            this.slashMenu.style.left = `${rect.left - containerRect.left}px`;
+            this.slashMenu.style.top = `${rect.bottom - containerRect.top + 8}px`;
+            this.slashMenu.classList.remove('hidden');
+        }
+    }
+
+    closeMenu() {
+        this.menuOpen = false;
+        this.slashMenu.classList.add('hidden');
+        this.activeBlock = null;
+    }
+
+    filterMenu(query) {
+        this.visibleItems = [];
+        this.menuItems.forEach((item) => {
+            const cmd = item.getAttribute('data-cmd') || '';
+            const name = item.querySelector('.name')?.textContent?.toLowerCase() || '';
+            const isMatch = cmd.startsWith(query) || name.includes(query);
+            
+            if (isMatch) {
+                item.removeAttribute('hidden');
+                this.visibleItems.push(item);
+            } else {
+                item.setAttribute('hidden', 'true');
+            }
+        });
+
+        if (this.visibleItems.length === 0) {
+            this.closeMenu();
+        } else {
+            const currentItem = this.menuItems[this.selectedIndex];
+            if (!this.visibleItems.includes(currentItem)) {
+                this.selectedIndex = this.menuItems.indexOf(this.visibleItems[0]);
+            }
+            this.updateMenuHighlight();
+        }
+    }
+
+    navigateMenu(direction) {
+        if (!this.visibleItems || this.visibleItems.length === 0) return;
+        
+        const currentItem = this.menuItems[this.selectedIndex];
+        let visibleIdx = this.visibleItems.indexOf(currentItem);
+        
+        if (visibleIdx === -1) {
+            visibleIdx = 0;
+        } else {
+            visibleIdx = (visibleIdx + direction + this.visibleItems.length) % this.visibleItems.length;
+        }
+        
+        const nextItem = this.visibleItems[visibleIdx];
+        this.selectedIndex = this.menuItems.indexOf(nextItem);
+        this.updateMenuHighlight();
+    }
+
+    updateMenuHighlight() {
+        this.menuItems.forEach((item, index) => {
+            if (index === this.selectedIndex) {
+                item.classList.add('selected');
+                item.scrollIntoView({ block: 'nearest' });
+            } else {
+                item.classList.remove('selected');
+            }
+        });
+    }
+
+    getCurrentBlock() {
+        const selection = window.getSelection();
+        if (!selection || selection.rangeCount === 0 || !this.editor.contains(selection.anchorNode)) {
+            return this.editor;
+        }
+
+        let node = selection.anchorNode;
+        
+        // Wrap naked text nodes directly in editor
+        if (node.nodeType === Node.TEXT_NODE && node.parentNode === this.editor) {
+            const block = document.createElement('div');
+            block.className = 'scratch-paragraph';
+            this.editor.insertBefore(block, node);
+            block.appendChild(node);
+            return block;
+        }
+
+        if (node === this.editor) {
+            const child = this.editor.childNodes[selection.anchorOffset];
+            if (child?.nodeType === Node.ELEMENT_NODE && 
+                (child.tagName === 'DIV' || child.tagName === 'P' || child.classList.contains('scratch-todo-row') || child.classList.contains('scratch-bullet-row'))) {
+                return child;
+            }
+            return this.editor;
+        }
+
+        // Walk up to find the closest block element child of the editor
+        let el = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
+        while (el && el !== this.editor) {
+            if (el.classList.contains('scratch-todo-row') || 
+                el.classList.contains('scratch-bullet-row') || 
+                el.classList.contains('scratch-paragraph') || 
+                el.classList.contains('scratch-h1') || 
+                el.classList.contains('scratch-h2') ||
+                (el.parentNode === this.editor && (el.tagName === 'DIV' || el.tagName === 'P'))) {
+                return el;
+            }
+            el = el.parentElement;
+        }
+
+        return this.editor;
+    }
+
+    getTextBeforeCaret(range) {
+        const block = this.getCurrentBlock();
+        const root = block === this.editor ? this.editor : block;
+        const beforeCaret = document.createRange();
+
+        try {
+            beforeCaret.selectNodeContents(root);
+            beforeCaret.setEnd(range.endContainer, range.endOffset);
+            return beforeCaret.toString().replace(/\u00a0/g, ' ');
+        } catch {
+            return '';
+        }
+    }
+
+    restoreSelection(range) {
+        if (!range || !this.editor.contains(range.startContainer)) return;
+
+        this.editor.focus();
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+    }
+
+    createEmptyBlock(className = 'scratch-paragraph') {
+        const block = document.createElement('div');
+        block.className = className;
+        block.appendChild(document.createElement('br'));
+        return block;
+    }
+
+    executeCommand(cmd) {
+        this.closeMenu();
+        const block = this.activeBlock || this.getCurrentBlock() || this.editor;
+        this.activeBlock = null;
+
+        let text = block.textContent || "";
+        text = text.replace(/\/[a-z0-9-]*$/i, "");
+        text = text.replace(/^(\[\]|- \[ \]|-\s?|##\s?|#\s?|---\s?)/, "");
+        text = text.trim();
+
+        let newEl;
+        if (cmd === 'todo') {
+            newEl = document.createElement('div');
+            newEl.className = 'scratch-todo-row';
+            newEl.innerHTML = `
+                <input type="checkbox" class="scratch-todo-checkbox">
+                <span class="scratch-todo-text" contenteditable="true" data-placeholder="Task...">${text}</span>
+            `;
+        } else if (cmd === 'bullet') {
+            newEl = document.createElement('div');
+            newEl.className = 'scratch-bullet-row';
+            newEl.setAttribute('data-placeholder', 'List item...');
+            newEl.textContent = text;
+        } else if (cmd === 'h1') {
+            newEl = document.createElement('div');
+            newEl.className = 'scratch-h1';
+            newEl.setAttribute('data-placeholder', 'Heading 1');
+            newEl.textContent = text;
+        } else if (cmd === 'h2') {
+            newEl = document.createElement('div');
+            newEl.className = 'scratch-h2';
+            newEl.setAttribute('data-placeholder', 'Heading 2');
+            newEl.textContent = text;
+        } else if (cmd === 'divider') {
+            newEl = document.createElement('hr');
+            newEl.className = 'scratch-divider';
+            
+            const nextLine = document.createElement('div');
+            nextLine.innerHTML = '&nbsp;';
+            block.parentNode.replaceChild(nextLine, block);
+            nextLine.parentNode.insertBefore(newEl, nextLine);
+            this.setCaretToEnd(nextLine);
+            this.saveContent();
+            return;
+        }
+
+        if (newEl) {
+            if (block === this.editor) {
+                // Safely remove direct text nodes to preserve existing block items
+                const children = Array.from(this.editor.childNodes);
+                children.forEach(child => {
+                    if (child.nodeType === Node.TEXT_NODE) {
+                        child.remove();
+                    }
+                });
+                this.editor.appendChild(newEl);
+            } else {
+                block.parentNode.replaceChild(newEl, block);
+            }
+
+            if (cmd === 'todo') {
+                this.setCaretToEnd(newEl.querySelector('.scratch-todo-text'));
+            } else {
+                this.setCaretToEnd(newEl);
+            }
+            this.saveContent();
+        }
+    }
+
+    setCaretToEnd(element) {
+        element.focus();
+        const range = document.createRange();
+        range.selectNodeContents(element);
+        range.collapse(false);
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+    }
+}
+
 /* ─── 5. Main Application & Tracker Logic ─────────────────── */
 class App {
     constructor() {
         this.timer = new FocusTimer();
+        this.scratchpad = new Scratchpad();
         this.problems = [];
         this.editingId = null;
+        this.dailyGoal = 10;
 
         // View Management (Dashboard vs Spreadsheet Log)
         this.activeTab = 'dashboard';
@@ -326,6 +834,8 @@ class App {
         this.bindTabs();
         this.bindFilters();
         this.bindTheme();
+        this.bindNotesSidebar();
+        this.bindGoalEvents();
         
         // Load data asynchronously from local server
         this.loadProblems();
@@ -340,6 +850,7 @@ class App {
     }
 
     async loadProblems() {
+        await this.loadGoal();
         try {
             const response = await fetch('http://localhost:3000/api/problems');
             if (!response.ok) throw new Error('Network response was not ok');
@@ -369,10 +880,150 @@ class App {
         });
     }
 
+    bindNotesSidebar() {
+        const sidebar = document.getElementById('notes-sidebar');
+        const backdrop = document.getElementById('notes-sidebar-backdrop');
+        const closeBtn = document.getElementById('notes-sidebar-close');
+
+        const closeSidebar = () => {
+            sidebar.classList.remove('active');
+            backdrop.classList.remove('active');
+            setTimeout(() => {
+                sidebar.classList.add('hidden');
+                backdrop.classList.add('hidden');
+            }, 300); // Wait for transitout animation
+        };
+
+        closeBtn.addEventListener('click', closeSidebar);
+        backdrop.addEventListener('click', closeSidebar);
+        
+        // Escape key to close sidebar
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !sidebar.classList.contains('hidden')) {
+                closeSidebar();
+            }
+        });
+    }
+
+    showNotesSidebar(problemName, notes) {
+        const sidebar = document.getElementById('notes-sidebar');
+        const backdrop = document.getElementById('notes-sidebar-backdrop');
+        const titleEl = document.getElementById('notes-sidebar-title');
+        const contentEl = document.getElementById('notes-sidebar-content');
+
+        titleEl.textContent = problemName;
+        contentEl.textContent = notes || 'No notes available.';
+
+        // Show elements (make visible in layout)
+        sidebar.classList.remove('hidden');
+        backdrop.classList.remove('hidden');
+        
+        // Trigger CSS transition animation
+        setTimeout(() => {
+            sidebar.classList.add('active');
+            backdrop.classList.add('active');
+        }, 10);
+    }
+
+    bindGoalEvents() {
+        const btnEdit = document.getElementById('btn-edit-goal');
+        if (!btnEdit) return;
+
+        btnEdit.addEventListener('click', () => {
+            const progText = document.getElementById('progress-text');
+            if (!progText) return;
+
+            // If already editing, do nothing
+            if (progText.querySelector('input')) return;
+
+            const parts = progText.textContent.split('/');
+            const currentCount = parts[0] || '0';
+
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.className = 'input-daily-goal';
+            input.value = this.dailyGoal;
+            input.min = 1;
+            input.max = 100;
+
+            progText.innerHTML = '';
+            progText.appendChild(document.createTextNode(`${currentCount}/`));
+            progText.appendChild(input);
+
+            btnEdit.style.display = 'none';
+
+            input.focus();
+            input.select();
+
+            let hasSaved = false;
+            const saveAndRevert = (shouldSave = true) => {
+                if (hasSaved) return;
+                hasSaved = true;
+
+                const val = parseInt(input.value);
+                progText.innerHTML = ''; 
+
+                if (shouldSave && !isNaN(val) && val > 0) {
+                    this.saveGoal(val);
+                } else {
+                    this.updateStats();
+                }
+                btnEdit.style.display = 'inline-block';
+            };
+
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    saveAndRevert(true);
+                } else if (e.key === 'Escape') {
+                    saveAndRevert(false);
+                }
+            });
+
+            input.addEventListener('blur', () => {
+                saveAndRevert(true);
+            });
+        });
+    }
+
+    async loadGoal() {
+        try {
+            const response = await fetch('http://localhost:3000/api/kv/daily_goal');
+            if (response.ok) {
+                const data = await response.json();
+                if (data && data.value) {
+                    this.dailyGoal = parseInt(data.value) || 10;
+                    return;
+                }
+            }
+        } catch (err) {
+            console.warn('Failed to load daily goal from server:', err);
+        }
+        this.dailyGoal = parseInt(localStorage.getItem('dsa_daily_goal')) || 10;
+    }
+
+    async saveGoal(newGoal) {
+        this.dailyGoal = newGoal;
+        localStorage.setItem('dsa_daily_goal', String(newGoal));
+        try {
+            await fetch('http://localhost:3000/api/kv/daily_goal', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ value: String(newGoal) })
+            });
+        } catch (err) {
+            // ignore network save errors
+        }
+        this.updateStats();
+        Toast.show(`Daily goal updated to ${newGoal} problems!`, 'success');
+    }
+
     bindShortcuts() {
         document.addEventListener('keydown', (e) => {
             const activeTag = document.activeElement.tagName.toLowerCase();
-            const isInputActive = activeTag === 'input' || activeTag === 'textarea' || activeTag === 'select';
+            const isInputActive = activeTag === 'input' || 
+                                  activeTag === 'textarea' || 
+                                  activeTag === 'select' || 
+                                  document.activeElement.closest('#scratchpad-editor');
 
             // Ctrl + S -> Save Problem
             if (e.ctrlKey && e.key.toLowerCase() === 's') {
@@ -708,7 +1359,7 @@ class App {
             const notesCell = tr.querySelector('.notes-cell');
             if (p.notes) {
                 notesCell.addEventListener('click', () => {
-                    alert(`Notes for ${p.name}:\n\n${p.notes}`);
+                    this.showNotesSidebar(p.name, p.notes);
                 });
             }
 
@@ -871,11 +1522,15 @@ class App {
         }
         this.animateStat('stat-streak', streak);
 
-        const progressPercent = Math.min((todayCount / 10) * 100, 100);
+        const progressPercent = Math.min((todayCount / this.dailyGoal) * 100, 100);
         const dailyProg = document.getElementById('daily-progress');
         const progText = document.getElementById('progress-text');
         if (dailyProg) dailyProg.style.width = `${progressPercent}%`;
-        if (progText) progText.textContent = `${todayCount}/10`;
+        if (progText) {
+            if (!progText.querySelector('input')) {
+                progText.textContent = `${todayCount}/${this.dailyGoal}`;
+            }
+        }
     }
 
     animateStat(elementId, targetValue) {

@@ -53,7 +53,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
     }
 });
 
-// Initialize Table
+// Initialize Tables
 db.serialize(() => {
     db.run(`CREATE TABLE IF NOT EXISTS problems (
         id TEXT PRIMARY KEY,
@@ -71,9 +71,20 @@ db.serialize(() => {
         timeSeconds INTEGER
     )`, (err) => {
         if (err) {
-            console.error('Error creating table:', err.message);
+            console.error('Error creating problems table:', err.message);
         } else {
             console.log('Problems table checked/created.');
+        }
+    });
+
+    db.run(`CREATE TABLE IF NOT EXISTS kv (
+        key TEXT PRIMARY KEY,
+        value TEXT
+    )`, (err) => {
+        if (err) {
+            console.error('Error creating kv table:', err.message);
+        } else {
+            console.log('KV table checked/created.');
         }
     });
 });
@@ -142,6 +153,31 @@ app.delete('/api/problems/:id', (req, res) => {
             return res.status(500).json({ error: err.message });
         }
         res.json({ success: true, changes: this.changes });
+    });
+});
+
+// GET a settings key-value pair
+app.get('/api/kv/:key', (req, res) => {
+    const { key } = req.params;
+    db.get("SELECT value FROM kv WHERE key = ?", [key], (err, row) => {
+        if (err) {
+            console.error('KV GET Error:', err.message);
+            return res.status(500).json({ error: err.message });
+        }
+        res.json({ key, value: row ? row.value : null });
+    });
+});
+
+// POST a settings key-value pair
+app.post('/api/kv/:key', (req, res) => {
+    const { key } = req.params;
+    const { value } = req.body;
+    db.run("INSERT OR REPLACE INTO kv (key, value) VALUES (?, ?)", [key, value], function(err) {
+        if (err) {
+            console.error('KV POST Error:', err.message);
+            return res.status(500).json({ error: err.message });
+        }
+        res.json({ success: true });
     });
 });
 

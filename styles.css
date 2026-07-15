@@ -231,11 +231,59 @@ body.dark-theme .topbar {
 .progress-info {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   font-size: 0.68rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--muted);
+}
+
+.btn-edit-goal {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  margin-left: 2px;
+  font-size: 0.6rem;
+  opacity: 0.5;
+  transition: opacity 0.2s ease, color 0.2s ease;
+  vertical-align: middle;
+  color: inherit;
+}
+
+.btn-edit-goal:hover {
+  opacity: 1;
+  color: var(--ink);
+}
+
+.input-daily-goal {
+  width: 32px;
+  background: var(--paper);
+  border: 1px solid var(--hair);
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-align: center;
+  padding: 0;
+  outline: none;
+  margin-top: -2px;
+  height: 14px;
+  box-sizing: border-box;
+}
+
+/* Chrome, Safari, Edge, Opera */
+.input-daily-goal::-webkit-outer-spin-button,
+.input-daily-goal::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Firefox */
+.input-daily-goal[type=number] {
+  -moz-appearance: textfield;
 }
 
 .progress-bar-bg {
@@ -273,6 +321,7 @@ body.dark-theme .topbar {
   flex-direction: column;
   gap: 16px;
   height: 100%;
+  min-height: 0;
 }
 
 /* ---------------------------------------------------------
@@ -522,6 +571,8 @@ textarea {
 .timer-card {
   text-align: center;
   justify-content: space-between;
+  flex: 0 0 auto;
+  height: auto;
 }
 
 .timer-header {
@@ -1259,4 +1310,421 @@ kbd {
   .form-row { flex-direction: column; gap: 0; }
   .stats-grid { grid-template-columns: 1fr; }
   .footer-wrap { flex-direction: column; gap: 16px; align-items: flex-start; }
+}
+
+/* ============================================================
+   § 15. SCRATCHPAD CARD & NOTION-STYLE EDITOR
+   ============================================================ */
+.scratchpad-card {
+  flex: 1 1 0%;
+  min-height: 0;
+  height: auto;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff !important;
+  background-image: radial-gradient(#e4dccb 1px, transparent 1px) !important;
+  background-size: 16px 16px !important;
+  border: 1px solid var(--hair);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  color: #191512 !important;
+  padding: 10px 16px 14px;
+}
+
+body.dark-theme .scratchpad-card {
+  background: #181513 !important;
+  background-image: radial-gradient(#2d2925 1px, transparent 1px) !important;
+  background-size: 16px 16px !important;
+  color: var(--ink) !important;
+  border-color: var(--hair);
+}
+
+.scratchpad-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2px;
+  flex: 0 0 auto;
+}
+
+.scratchpad-label {
+  margin: 0;
+  font-size: 0.58rem;
+  opacity: 0.78;
+}
+
+.scratchpad-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-scratch-tool {
+  background: transparent;
+  border: none;
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+  transition: var(--transition);
+}
+
+.btn-scratch-tool:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+body.dark-theme .btn-scratch-tool:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.scratchpad-body {
+  flex: 1 1 0%;
+  overflow-y: auto;
+  min-height: 0;
+  position: relative;
+  margin: 2px 0 0 0;
+  padding-right: 4px;
+}
+
+.scratchpad-editor {
+  width: 100%;
+  height: 100%;
+  min-height: 120px;
+  outline: none;
+  font-size: 1.05rem;
+  line-height: 1.6;
+  font-family: var(--font-ui);
+  text-align: left;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: inherit;
+}
+
+.scratchpad-editor > *:first-child {
+  margin-top: 0 !important;
+}
+
+.scratchpad-editor:empty::before {
+  content: attr(placeholder);
+  color: var(--muted);
+  opacity: 0.65;
+  pointer-events: none;
+  display: block;
+}
+
+/* Floating Slash Menu */
+.slash-menu {
+  position: absolute;
+  z-index: 1000;
+  background: var(--paper);
+  border: 1px solid var(--hair);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow);
+  width: 240px;
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 6px 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.slash-menu.hidden {
+  display: none !important;
+}
+
+.slash-menu-header {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  padding: 4px 12px 6px;
+  border-bottom: 1px solid var(--hair);
+  margin-bottom: 4px;
+  font-weight: 600;
+  text-align: left;
+}
+
+.slash-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.slash-item:hover, .slash-item.selected {
+  background: var(--bg);
+}
+
+.slash-item[hidden] {
+  display: none;
+}
+
+.slash-item .icon {
+  font-size: 1.2rem;
+  width: 24px;
+  text-align: center;
+}
+
+.slash-item .details {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+}
+
+.slash-item .name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.slash-item .desc {
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+.scratchpad-footer {
+  font-size: 0.62rem;
+  line-height: 1.25;
+  color: var(--muted);
+  opacity: 0.72;
+  padding-top: 3px;
+  margin-top: auto;
+  display: flex;
+  justify-content: space-between;
+  flex: 0 0 auto;
+}
+
+.scratchpad-footer code {
+  font-family: var(--font-mono);
+  font-size: inherit;
+  background: rgba(0, 0, 0, 0.035);
+  padding: 0 3px;
+  border-radius: 4px;
+}
+
+body.dark-theme .scratchpad-footer code {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* Custom styles for elements created inside editor */
+.scratch-todo-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 8px;
+  text-align: left;
+}
+
+.scratch-todo-checkbox {
+  margin-top: 4px;
+  cursor: pointer;
+  accent-color: var(--accent);
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
+}
+
+.scratch-todo-text {
+  flex: 1;
+  outline: none;
+  font-size: 1.05rem;
+  min-height: 1.2em;
+}
+
+/* Custom translucent placeholders */
+.scratch-todo-text:empty::before,
+.scratch-bullet-row:empty::before,
+.scratch-h1:empty::before,
+.scratch-h2:empty::before {
+  content: attr(data-placeholder);
+  color: var(--muted);
+  opacity: 0.5;
+  pointer-events: none;
+  display: inline-block;
+}
+
+.scratch-todo-row.checked .scratch-todo-text {
+  text-decoration: line-through;
+  opacity: 0.6;
+  color: var(--muted);
+}
+
+.scratch-bullet-row {
+  display: list-item;
+  list-style-type: disc;
+  margin-left: 20px;
+  margin-bottom: 6px;
+  text-align: left;
+}
+
+.scratch-h1 {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 700;
+  margin-top: 14px;
+  margin-bottom: 6px;
+  color: var(--ink);
+  text-align: left;
+}
+
+body.dark-theme .scratch-h1 {
+  color: var(--ink);
+}
+
+.scratch-h2 {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 600;
+  margin-top: 10px;
+  margin-bottom: 4px;
+  color: var(--ink);
+  text-align: left;
+}
+
+body.dark-theme .scratch-h2 {
+  color: var(--ink);
+}
+
+.scratch-divider {
+  border: none;
+  border-top: 1px dashed var(--hair);
+  margin: 12px 0;
+  height: 0;
+}
+
+body.dark-theme .scratch-divider {
+  border-top-color: #332f2b;
+}
+
+/* ============================================================
+   § 16. NOTES SIDEBAR DRAWER
+   ============================================================ */
+.sidebar-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 1040;
+  opacity: 0;
+  transition: opacity 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+  pointer-events: none;
+}
+
+.sidebar-backdrop.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.sidebar-backdrop.hidden {
+  display: none !important;
+}
+
+.sidebar-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 380px;
+  max-width: 90vw;
+  height: 100vh;
+  z-index: 1050;
+  background: #ffffff !important;
+  background-image: radial-gradient(#e4dccb 1px, transparent 1px) !important;
+  background-size: 16px 16px !important;
+  border-left: 1px solid var(--hair);
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.15);
+  color: #191512 !important;
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+  box-sizing: border-box;
+  transform: translateX(100%);
+  transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.sidebar-drawer.active {
+  transform: translateX(0);
+}
+
+.sidebar-drawer.hidden {
+  display: none !important;
+}
+
+body.dark-theme .sidebar-drawer {
+  background: #181513 !important;
+  background-image: radial-gradient(#2d2925 1px, transparent 1px) !important;
+  background-size: 16px 16px !important;
+  color: var(--ink) !important;
+  border-left-color: var(--hair);
+}
+
+.sidebar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex: 0 0 auto;
+}
+
+.notes-sidebar-eyebrow {
+  margin: 0 0 4px 0;
+  font-size: 0.58rem;
+  opacity: 0.78;
+}
+
+.notes-sidebar-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.2;
+}
+
+body.dark-theme .notes-sidebar-title {
+  color: var(--ink);
+}
+
+.btn-close-sidebar {
+  background: transparent;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  transition: var(--transition);
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin-top: -4px;
+}
+
+.btn-close-sidebar:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--ink);
+}
+
+body.dark-theme .btn-close-sidebar:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--ink);
+}
+
+.sidebar-body {
+  flex: 1 1 0%;
+  overflow-y: auto;
+  min-height: 0;
+  margin-top: 8px;
+}
+
+.notes-sidebar-content {
+  font-size: 0.98rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: inherit;
+  font-family: var(--font-ui);
 }

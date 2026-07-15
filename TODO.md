@@ -1,10 +1,9 @@
 #Improvements
--> The timer resets to 20mins after completing the submission, like can we have the last set timer.
--> Is there like a notification sound? If not a simple bell right at the end of timer would be nice.
--> timmer is on the the browser? if I close the browser or reload it gets refreshed, maybe the backend could handle the timer?
--> Focus time on the statistic show the total focus time, instead let it show the focus time of the present day.
-
-
+-> [x] The timer does not allow us to increase or decrease while active. Fix This. (Fixed)
+-> How to sync the local to the droplet version?
+-> [x] Can we just have like a white scratch board below the timer for listing main task for the day (can we have like notion style /todo to create check box, list etc but keep it minimal) (Fixed)
+-> +- button to set daily goal
+-> also time zone is not IST I guess. 
 
 Yes, you absolutely can! Running your app on a VPS (like a DigitalOcean Droplet) is a very common way to host web
   applications.

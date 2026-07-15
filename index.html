@@ -28,7 +28,7 @@
             
             <div class="progress-container">
                 <div class="progress-info">
-                    <span>Daily Goal</span>
+                    <span>Daily Goal <button class="btn-edit-goal" id="btn-edit-goal" title="Set daily goal" aria-label="Set daily goal">✏️</button></span>
                     <span id="progress-text">0/10</span>
                 </div>
                 <div class="progress-bar-bg">
@@ -130,6 +130,64 @@
                     <button class="btn primary large" id="btn-start-pause">Start</button>
                     <button class="btn secondary large" id="btn-reset-timer">Reset</button>
                     <button class="btn icon-btn" id="btn-add-5" title="Add 5 minutes">+5m</button>
+                </div>
+            </div>
+
+            <!-- Scratchpad Card -->
+            <div class="card scratchpad-card">
+                <div class="scratchpad-header">
+                    <div class="eyebrow scratchpad-label">Scratch Board</div>
+                    <div class="scratchpad-actions">
+                        <button class="btn-scratch-tool" id="btn-scratch-clear" type="button" title="Clear board" aria-label="Clear scratch board">🧹</button>
+                    </div>
+                </div>
+                
+                <div class="scratchpad-body">
+                    <div id="scratchpad-editor" class="scratchpad-editor" contenteditable="true" role="textbox" aria-multiline="true" placeholder="Start typing here…"></div>
+                    
+                    <!-- Floating Slash Menu -->
+                    <div id="scratchpad-slash-menu" class="slash-menu hidden">
+                        <div class="slash-menu-header">Slash Commands</div>
+                        <div class="slash-item" data-cmd="todo">
+                            <span class="icon">☑️</span>
+                            <div class="details">
+                                <span class="name">To-do List</span>
+                                <span class="desc">Create a checkbox task</span>
+                            </div>
+                        </div>
+                        <div class="slash-item" data-cmd="bullet">
+                            <span class="icon">•</span>
+                            <div class="details">
+                                <span class="name">Bullet List</span>
+                                <span class="desc">Create a bullet point</span>
+                            </div>
+                        </div>
+                        <div class="slash-item" data-cmd="h1">
+                            <span class="icon">H1</span>
+                            <div class="details">
+                                <span class="name">Heading 1</span>
+                                <span class="desc">Large heading</span>
+                            </div>
+                        </div>
+                        <div class="slash-item" data-cmd="h2">
+                            <span class="icon">H2</span>
+                            <div class="details">
+                                <span class="name">Heading 2</span>
+                                <span class="desc">Medium heading</span>
+                            </div>
+                        </div>
+                        <div class="slash-item" data-cmd="divider">
+                            <span class="icon">―</span>
+                            <div class="details">
+                                <span class="name">Divider</span>
+                                <span class="desc">Horizontal line</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="scratchpad-footer">
+                    <span><code>/</code> blocks · <code>[]</code> to-do · <code>-</code> bullet · <code>#</code> heading</span>
                 </div>
             </div>
         </section>
@@ -296,6 +354,22 @@
             <p id="motivational-quote">"Progress beats perfection."</p>
             <p class="sub-text">Either take a hint or move on to the next step.</p>
             <button class="btn primary" id="btn-close-modal">Continue</button>
+        </div>
+    </div>
+
+    <!-- Notes Sidebar Drawer -->
+    <div id="notes-sidebar-backdrop" class="sidebar-backdrop hidden"></div>
+    <div id="notes-sidebar" class="sidebar-drawer hidden">
+        <div class="sidebar-header">
+            <div>
+                <div class="eyebrow notes-sidebar-eyebrow">Problem Notes</div>
+                <h3 id="notes-sidebar-title" class="notes-sidebar-title">Problem Name</h3>
+            </div>
+            <button id="notes-sidebar-close" class="btn-close-sidebar" aria-label="Close notes">✕</button>
+        </div>
+        <hr class="scratch-divider">
+        <div class="sidebar-body">
+            <div id="notes-sidebar-content" class="notes-sidebar-content"></div>
         </div>
     </div>
 
