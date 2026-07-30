@@ -518,19 +518,6 @@ Clear
 </div>
 </div>
 
-<!-- Grid View Wrapper (default) -->
-<div id="journal-grid-wrapper" class="journal-grid-wrapper">
-  <div class="card journal-entries-card">
-    <div class="entries-header">
-      <h3>Journal Timeline</h3>
-      <span class="badge-count" id="journal-entries-count">0 entries</span>
-    </div>
-    <div class="journal-entries-list" id="journal-entries-list">
-      <!-- Entries populated dynamically -->
-    </div>
-    <p class="empty-state hidden" id="journal-empty">No journal entries yet for this month. Click "+ What's on your mind?" or any date cell above to write your first entry!</p>
-  </div>
-</div>
 </section>
 
 <!-- Footer / Keyboard Shortcuts -->
@@ -585,8 +572,11 @@ Clear
 </div>
 
 <!-- Interactive Windows-Style Conflict Resolution Modal -->
-<div id="conflict-modal" class="modal hidden" role="dialog" aria-modal="true">
+<div id="conflict-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="conflict-title">
 <div class="modal-content conflict-modal-content">
+
+<!-- Active Resolution View -->
+<div id="conflict-active-view">
 <div class="conflict-header">
 <div class="conflict-title-group">
 <span class="conflict-icon">
@@ -594,16 +584,28 @@ Clear
 </span>
 <div>
 <div class="eyebrow conflict-eyebrow">Duplicate Resolution</div>
-<h2 class="conflict-title">Import Conflict Detected</h2>
+<h2 class="conflict-title" id="conflict-title">Import Conflict Detected</h2>
 </div>
 </div>
-<div style="display: flex; align-items: center; gap: 10px;">
-<span class="conflict-counter-badge font-mono" id="conflict-counter">Conflict 1 of 1</span>
+<div style="display: flex; align-items: center; gap: 8px;">
+<span class="conflict-diff-count-badge" id="conflict-diff-count-badge" aria-live="polite">0 fields differ</span>
+<span class="conflict-counter-badge font-mono" id="conflict-counter" aria-live="polite">Conflict 1 of 1</span>
 <button type="button" class="conflict-close-btn" id="btn-cancel-conflict-modal" title="Cancel Import" aria-label="Cancel Import">✕</button>
 </div>
 </div>
 
+<!-- Thin Progress Bar Track -->
+<div class="conflict-progress-track">
+<div class="conflict-progress-bar" id="conflict-progress-bar" style="width: 0%;"></div>
+</div>
+
+<div class="conflict-subtitle-bar">
 <p class="conflict-subtitle" id="conflict-summary-text">Found duplicate problem entries. Choose which version to keep.</p>
+<button type="button" class="btn-conflict-undo hidden" id="btn-undo-conflict" title="Undo last decision">
+<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v6h6"></path><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"></path></svg>
+<span>Undo Last</span>
+</button>
+</div>
 
 <div class="conflict-body">
 <!-- Side-by-Side Comparison Cards -->
@@ -639,74 +641,122 @@ Imported from CSV
 
 <!-- Resolution Actions for current conflict -->
 <div class="conflict-actions-bar">
-<button type="button" class="btn conflict-btn btn-keep-existing" id="btn-keep-existing">
+<button type="button" class="btn conflict-btn btn-keep-existing" id="btn-keep-existing" tabindex="0" title="Keep Existing Version (Enter)">
 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M21 19c0 1.66-4 3-9 3s-9-1.34-9-3"></path></svg>
-Keep Existing
+<span>Keep Existing (Skip New)</span>
 </button>
-<button type="button" class="btn conflict-btn btn-replace-imported" id="btn-replace-imported">
+<button type="button" class="btn conflict-btn btn-replace-imported" id="btn-replace-imported" tabindex="0" title="Replace Existing Entry with Imported Entry">
 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
-Replace with Imported
+<span>Replace with Imported</span>
 </button>
-<button type="button" class="btn conflict-btn btn-keep-both" id="btn-keep-both">
+<button type="button" class="btn conflict-btn btn-keep-both" id="btn-keep-both" tabindex="0" title="Keep Both Entries as Separate Records">
 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-Keep Both
+<span>Keep Both Files</span>
 </button>
 </div>
 
 <!-- Batch / Shortcut Controls -->
 <div class="conflict-batch-footer">
-<label class="checkbox-label conflict-apply-all-label" for="conflict-apply-all">
+<div class="conflict-batch-left">
+<label class="checkbox-label conflict-apply-all-label" for="conflict-apply-all" title="Apply selected action to all remaining items in batch">
 <input type="checkbox" id="conflict-apply-all">
-Do this for all remaining conflicts
+<span>Apply this choice to all remaining conflicts</span>
 </label>
+<button type="button" class="btn btn-batch btn-skip-now" id="btn-skip-conflict" title="Skip for now (Esc)">
+Skip for now
+</button>
+</div>
 
 <div class="conflict-batch-buttons">
-<button type="button" class="btn btn-batch" id="btn-skip-all">Skip All Duplicates</button>
-<button type="button" class="btn btn-batch" id="btn-replace-all">Replace All Duplicates</button>
-<button type="button" class="btn btn-batch" id="btn-keep-all">Keep All (Import Everything)</button>
-<button type="button" class="btn btn-batch btn-batch-cancel" id="btn-cancel-import">Cancel Import</button>
+<button type="button" class="btn btn-batch" id="btn-skip-all" title="Keep existing for all remaining duplicates">Skip All (Keep Existing)</button>
+<button type="button" class="btn btn-batch" id="btn-replace-all" title="Replace all remaining duplicates with imported">Replace All (Use Imported)</button>
+<button type="button" class="btn btn-batch" id="btn-keep-all" title="Import all remaining entries as copies">Keep All (Save Both)</button>
+<button type="button" class="btn btn-batch btn-batch-cancel" id="btn-cancel-import" title="Cancel import process">Cancel Import</button>
 </div>
 </div>
 </div>
 </div>
 
-<!-- Scratchpad Writing Modal ("What's on your mind?") -->
-<div class="modal-backdrop hidden" id="journal-modal" role="dialog" aria-modal="true" aria-labelledby="journal-modal-title">
-<div class="scratchpad-modal-card">
+<!-- End-of-Batch Summary View (shown when finished) -->
+<div id="conflict-summary-view" class="hidden">
+<div class="conflict-header">
+<div class="conflict-title-group">
+<span class="conflict-icon success-icon">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--color-easy)" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+</span>
+<div>
+<div class="eyebrow conflict-eyebrow">Import Summary</div>
+<h2 class="conflict-title">Conflict Resolution Complete</h2>
+</div>
+</div>
+<button type="button" class="conflict-close-btn" id="btn-cancel-conflict-modal-summary" title="Close Dialog" aria-label="Close Dialog">✕</button>
+</div>
+
+<div class="summary-body">
+<p class="summary-total-text" id="summary-total-text">Resolved 47 of 47 conflicts</p>
+
+<div class="summary-breakdown-grid">
+<div class="summary-card">
+<span class="summary-card-val font-mono" id="summary-count-kept">0</span>
+<span class="summary-card-lbl">Kept Existing</span>
+</div>
+<div class="summary-card">
+<span class="summary-card-val font-mono" id="summary-count-replaced">0</span>
+<span class="summary-card-lbl">Replaced</span>
+</div>
+<div class="summary-card">
+<span class="summary-card-val font-mono" id="summary-count-both">0</span>
+<span class="summary-card-lbl">Kept Both</span>
+</div>
+<div class="summary-card">
+<span class="summary-card-val font-mono" id="summary-count-skipped">0</span>
+<span class="summary-card-lbl">Skipped</span>
+</div>
+</div>
+
+<div class="summary-actions-bar">
+<button type="button" class="btn secondary hidden" id="btn-review-skipped">
+Review Skipped Conflicts (<span id="summary-skipped-num">0</span>)
+</button>
+<button type="button" class="btn primary" id="btn-commit-import">
+Finish & Commit Import
+</button>
+</div>
+</div>
+</div>
+
+</div>
+</div>
+
+<!-- Centered Journal & Reflection Modal ("What's on your mind?") -->
+<div id="journal-modal-backdrop" class="modal-backdrop hidden"></div>
+<div id="journal-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="journal-modal-title">
+<div class="scratchpad-modal-card notes-modal-card">
 <button type="button" class="scratchpad-close-btn" id="btn-close-journal-modal" aria-label="Close modal">✕</button>
 
-<div class="scratchpad-header">
-<div class="scratchpad-badge">
-<span class="scratchpad-icon">
-<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
-</span>
-<span>DAILY SCRATCHPAD</span>
+<div class="notes-modal-header">
+<div>
+<h3 class="notes-modal-heading" id="journal-modal-title">What's on your mind?</h3>
+<div class="notes-modal-subtitle" id="journal-modal-date">Thursday, July 30, 2026</div>
 </div>
-<h2 id="journal-modal-title">What's on your mind?</h2>
-<div class="scratchpad-date-display" id="journal-modal-date">Thursday, July 30, 2026</div>
 </div>
 
-<form id="journal-form" autocomplete="off">
+<form id="journal-form" autocomplete="off" style="display: flex; flex-direction: column; gap: 12px; margin-top: 8px;">
 <input type="hidden" id="journal-entry-id" value="">
 <input type="hidden" id="journal-entry-date" value="">
 
-<div class="scratchpad-paper">
-<div class="form-group scratchpad-title-group">
-<input type="text" id="journal-title" class="scratchpad-title-input" placeholder="Title (optional)...">
+<div class="notes-modal-body" style="margin-top: 0;">
+<input type="text" id="journal-title" class="notes-modal-title-input" placeholder="Title (optional)...">
+<textarea id="journal-content" class="notes-modal-textarea" placeholder="Pour down your thoughts, DSA reflections, breakthroughs, or end-of-day recap..."></textarea>
 </div>
 
-<div class="form-group scratchpad-body-group">
-<textarea id="journal-content" class="scratchpad-textarea" placeholder="Pour down your thoughts, DSA reflections, breakthroughs, or end-of-day recap..."></textarea>
-</div>
-</div>
-
-<div class="scratchpad-footer">
+<div class="notes-modal-footer-meta">
 <div class="scratchpad-meta">
 <span id="scratchpad-word-count" class="word-count-badge">0 words</span>
 <span class="draft-indicator hidden" id="scratchpad-draft-indicator">Draft saved</span>
 </div>
 <div class="scratchpad-actions">
-<button type="button" class="btn danger hidden" id="btn-delete-journal">Delete Entry</button>
+<button type="button" class="btn danger hidden" id="btn-delete-journal">Delete</button>
 <button type="button" class="btn secondary" id="btn-cancel-journal">Cancel</button>
 <button type="submit" class="btn primary glow" id="btn-save-journal">Save Entry</button>
 </div>
@@ -714,6 +764,7 @@ Do this for all remaining conflicts
 </form>
 </div>
 </div>
+
 
 <script src="script.js"></script>
 </body>

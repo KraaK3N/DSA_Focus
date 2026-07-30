@@ -1731,28 +1731,86 @@ class App {
         const btnReplaceImported = document.getElementById('btn-replace-imported');
         const btnKeepBoth = document.getElementById('btn-keep-both');
 
+        const btnSkipConflict = document.getElementById('btn-skip-conflict');
+        const btnUndoConflict = document.getElementById('btn-undo-conflict');
+
         const btnSkipAll = document.getElementById('btn-skip-all');
         const btnReplaceAll = document.getElementById('btn-replace-all');
         const btnKeepAll = document.getElementById('btn-keep-all');
 
         const btnCancelModal = document.getElementById('btn-cancel-conflict-modal');
+        const btnCancelModalSummary = document.getElementById('btn-cancel-conflict-modal-summary');
         const btnCancelImport = document.getElementById('btn-cancel-import');
+
+        const btnReviewSkipped = document.getElementById('btn-review-skipped');
+        const btnCommitImport = document.getElementById('btn-commit-import');
 
         if (btnKeepExisting) btnKeepExisting.addEventListener('click', () => this.resolveConflict('skip'));
         if (btnReplaceImported) btnReplaceImported.addEventListener('click', () => this.resolveConflict('update'));
         if (btnKeepBoth) btnKeepBoth.addEventListener('click', () => this.resolveConflict('insert'));
+
+        if (btnSkipConflict) btnSkipConflict.addEventListener('click', () => this.skipCurrentConflict());
+        if (btnUndoConflict) btnUndoConflict.addEventListener('click', () => this.undoLastConflict());
 
         if (btnSkipAll) btnSkipAll.addEventListener('click', () => this.batchResolveAll('skip'));
         if (btnReplaceAll) btnReplaceAll.addEventListener('click', () => this.batchResolveAll('update'));
         if (btnKeepAll) btnKeepAll.addEventListener('click', () => this.batchResolveAll('insert'));
 
         if (btnCancelModal) btnCancelModal.addEventListener('click', () => this.cancelConflictResolution());
+        if (btnCancelModalSummary) btnCancelModalSummary.addEventListener('click', () => this.cancelConflictResolution());
         if (btnCancelImport) btnCancelImport.addEventListener('click', () => this.cancelConflictResolution());
+
+        if (btnReviewSkipped) btnReviewSkipped.addEventListener('click', () => this.reviewSkippedConflicts());
+        if (btnCommitImport) btnCommitImport.addEventListener('click', () => this.finalizeConflictResolution());
+
+        // Focus ring navigation index for keyboard
+        this.actionButtonFocusIdx = 0;
+        const actionButtons = [btnKeepExisting, btnReplaceImported, btnKeepBoth].filter(Boolean);
+
+        const updateFocusState = () => {
+            actionButtons.forEach((btn, idx) => {
+                if (idx === this.actionButtonFocusIdx) {
+                    btn.classList.add('is-keyboard-focus');
+                    btn.focus();
+                } else {
+                    btn.classList.remove('is-keyboard-focus');
+                }
+            });
+        };
 
         window.addEventListener('keydown', (e) => {
             const modal = document.getElementById('conflict-modal');
-            if (e.key === 'Escape' && modal && !modal.classList.contains('hidden')) {
-                this.cancelConflictResolution();
+            if (!modal || modal.classList.contains('hidden')) return;
+
+            const activeView = document.getElementById('conflict-active-view');
+            const summaryView = document.getElementById('conflict-summary-view');
+
+            if (summaryView && !summaryView.classList.contains('hidden')) {
+                if (e.key === 'Escape') {
+                    this.cancelConflictResolution();
+                } else if (e.key === 'Enter') {
+                    this.finalizeConflictResolution();
+                }
+                return;
+            }
+
+            if (!activeView || activeView.classList.contains('hidden')) return;
+
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                this.skipCurrentConflict();
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                const currentFocusedBtn = actionButtons[this.actionButtonFocusIdx] || btnKeepExisting;
+                currentFocusedBtn.click();
+            } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+                e.preventDefault();
+                this.actionButtonFocusIdx = (this.actionButtonFocusIdx + 1) % actionButtons.length;
+                updateFocusState();
+            } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                e.preventDefault();
+                this.actionButtonFocusIdx = (this.actionButtonFocusIdx - 1 + actionButtons.length) % actionButtons.length;
+                updateFocusState();
             }
         });
     }
@@ -1764,56 +1822,121 @@ class App {
         Toast.show('CSV import process cancelled.', 'info');
     }
 
-    openConflictResolutionModal(staged, conflicts) {
+    openConflictResolutionModal(staged, rawConflicts) {
+        const computedQueue = rawConflicts.map(pair => {
+            const diffFields = [];
+            const fieldsToCompare = [
+                'date', 'name', 'platform', 'difficulty', 'topic',
+                'url', 'timeSpent', 'hintUsed', 'independent', 'needsRevision', 'notes'
+            ];
+
+            fieldsToCompare.forEach(f => {
+                let v1 = pair.existing[f];
+                let v2 = pair.imported[f];
+                if (f === 'hintUsed' || f === 'independent' || f === 'needsRevision') {
+                    v1 = !!v1;
+                    v2 = !!v2;
+                }
+                const str1 = String(v1 !== undefined && v1 !== null ? v1 : '').trim().toLowerCase();
+                const str2 = String(v2 !== undefined && v2 !== null ? v2 : '').trim().toLowerCase();
+                if (str1 !== str2) {
+                    diffFields.push(f);
+                }
+            });
+
+            return {
+                existing: pair.existing,
+                imported: pair.imported,
+                diffFields: diffFields,
+                status: 'pending' // 'pending' | 'resolved' | 'skipped'
+            };
+        });
+
         this.conflictState = {
             staged: staged,
-            conflicts: conflicts,
+            queue: computedQueue,
+            totalCount: computedQueue.length,
             index: 0,
+            history: [],
             resolutions: []
         };
 
         const applyAllChk = document.getElementById('conflict-apply-all');
         if (applyAllChk) applyAllChk.checked = false;
 
+        const activeView = document.getElementById('conflict-active-view');
+        const summaryView = document.getElementById('conflict-summary-view');
+        if (activeView) activeView.classList.remove('hidden');
+        if (summaryView) summaryView.classList.add('hidden');
+
         const modal = document.getElementById('conflict-modal');
         if (modal) modal.classList.remove('hidden');
 
+        this.actionButtonFocusIdx = 0;
         this.renderCurrentConflict();
     }
 
     renderCurrentConflict() {
-        const { conflicts, index } = this.conflictState;
+        if (!this.conflictState) return;
+        const { queue, index, history } = this.conflictState;
 
-        if (index >= conflicts.length) {
-            this.finalizeConflictResolution();
+        if (index >= queue.length) {
+            this.showConflictSummary();
             return;
         }
 
         const counterEl = document.getElementById('conflict-counter');
+        const diffBadgeEl = document.getElementById('conflict-diff-count-badge');
+        const progressBarEl = document.getElementById('conflict-progress-bar');
         const summaryTextEl = document.getElementById('conflict-summary-text');
+        const btnUndo = document.getElementById('btn-undo-conflict');
+
         const existingDetailsEl = document.getElementById('conflict-existing-details');
         const importedDetailsEl = document.getElementById('conflict-imported-details');
 
+        const pair = queue[index];
+
         if (counterEl) {
-            counterEl.textContent = `Conflict ${index + 1} of ${conflicts.length}`;
-        }
-        if (summaryTextEl) {
-            summaryTextEl.textContent = `Found ${conflicts.length} duplicate problem entry${conflicts.length > 1 ? 'ies' : ''}. Choose which version to keep.`;
+            counterEl.textContent = `Conflict ${index + 1} of ${queue.length}`;
         }
 
-        const pair = conflicts[index];
-        const existing = pair.existing;
-        const imported = pair.imported;
+        if (progressBarEl) {
+            const pct = Math.round(((index) / queue.length) * 100);
+            progressBarEl.style.width = `${pct}%`;
+        }
+
+        if (diffBadgeEl) {
+            const diffCount = pair.diffFields.length;
+            diffBadgeEl.textContent = `${diffCount} field${diffCount === 1 ? '' : 's'} differ`;
+        }
+
+        if (summaryTextEl) {
+            summaryTextEl.textContent = `Found ${this.conflictState.totalCount} duplicate problem entries. Choose which version to keep.`;
+        }
+
+        if (btnUndo) {
+            if (history.length > 0) {
+                btnUndo.classList.remove('hidden');
+            } else {
+                btnUndo.classList.add('hidden');
+            }
+        }
 
         if (existingDetailsEl) {
-            existingDetailsEl.innerHTML = this.buildConflictCardHtml(existing, imported);
+            existingDetailsEl.innerHTML = this.buildConflictCardHtml(pair.existing, pair.imported, pair.diffFields);
         }
         if (importedDetailsEl) {
-            importedDetailsEl.innerHTML = this.buildConflictCardHtml(imported, existing);
+            importedDetailsEl.innerHTML = this.buildConflictCardHtml(pair.imported, pair.existing, pair.diffFields);
+        }
+
+        // Set focus to default action button
+        const btnKeepExisting = document.getElementById('btn-keep-existing');
+        if (btnKeepExisting) {
+            btnKeepExisting.focus();
         }
     }
 
-    buildConflictCardHtml(record, otherRecord) {
+    buildConflictCardHtml(record, otherRecord, diffFields) {
         const fields = [
             { label: 'Date Logged', key: 'date', val: record.date },
             { label: 'Problem Name', key: 'name', val: record.name },
@@ -1829,23 +1952,13 @@ class App {
         ];
 
         return fields.map(f => {
-            let otherVal = otherRecord[f.key];
-            if (f.key === 'hintUsed') otherVal = otherRecord.hintUsed ? 'Yes 💡' : 'No';
-            if (f.key === 'independent') otherVal = otherRecord.independent ? 'Yes' : 'No (Help)';
-            if (f.key === 'needsRevision') otherVal = otherRecord.needsRevision ? 'Yes 🔄' : 'No';
-            if (f.key === 'url') otherVal = otherRecord.url || 'None';
-            if (f.key === 'notes') otherVal = otherRecord.notes ? otherRecord.notes : 'None';
-            if (f.key === 'timeSpent') otherVal = otherRecord.timeSpent || '0s';
-
-            const isDiff = String(f.val).trim().toLowerCase() !== String(otherVal).trim().toLowerCase();
-            const diffClass = isDiff ? 'is-diff' : '';
-            const diffBadge = isDiff ? '<span class="conflict-diff-badge">Differs</span>' : '';
+            const isDiff = diffFields.includes(f.key);
+            const rowClass = isDiff ? 'is-diff' : 'is-same';
 
             return `
-                <div class="conflict-field-row ${diffClass}">
+                <div class="conflict-field-row ${rowClass}">
                     <div class="conflict-field-label">
                         <span>${f.label}</span>
-                        ${diffBadge}
                     </div>
                     <div class="conflict-field-val">${this.escapeHtml(String(f.val))}</div>
                 </div>
@@ -1857,34 +1970,85 @@ class App {
         if (!this.conflictState) return;
 
         const applyAll = document.getElementById('conflict-apply-all')?.checked;
-        const { conflicts, index } = this.conflictState;
+        const { queue, index } = this.conflictState;
 
         if (applyAll) {
             this.batchResolveAll(action);
             return;
         }
 
-        const pair = conflicts[index];
+        const pair = queue[index];
+
+        // Save state snapshot for Undo
+        this.conflictState.history.push({
+            index: index,
+            pair: pair,
+            resolutionsCount: this.conflictState.resolutions.length
+        });
+
         this.addResolution(action, pair);
+        pair.status = 'resolved';
 
         this.conflictState.index++;
-        if (this.conflictState.index < conflicts.length) {
+        if (this.conflictState.index < queue.length) {
             this.renderCurrentConflict();
         } else {
-            this.finalizeConflictResolution();
+            this.showConflictSummary();
         }
+    }
+
+    skipCurrentConflict() {
+        if (!this.conflictState) return;
+        const { queue, index } = this.conflictState;
+
+        if (index >= queue.length) return;
+        const pair = queue[index];
+
+        this.conflictState.history.push({
+            index: index,
+            pair: pair,
+            resolutionsCount: this.conflictState.resolutions.length
+        });
+
+        pair.status = 'skipped';
+        this.conflictState.index++;
+
+        if (this.conflictState.index < queue.length) {
+            this.renderCurrentConflict();
+        } else {
+            this.showConflictSummary();
+        }
+    }
+
+    undoLastConflict() {
+        if (!this.conflictState || this.conflictState.history.length === 0) return;
+
+        const lastState = this.conflictState.history.pop();
+        this.conflictState.index = lastState.index;
+
+        // Rollback resolution if one was added
+        if (this.conflictState.resolutions.length > lastState.resolutionsCount) {
+            this.conflictState.resolutions.pop();
+        }
+
+        lastState.pair.status = 'pending';
+        this.renderCurrentConflict();
     }
 
     batchResolveAll(action) {
         if (!this.conflictState) return;
-        const { conflicts, index } = this.conflictState;
+        const { queue, index } = this.conflictState;
 
-        for (let i = index; i < conflicts.length; i++) {
-            this.addResolution(action, conflicts[i]);
+        for (let i = index; i < queue.length; i++) {
+            const pair = queue[i];
+            if (pair.status !== 'resolved') {
+                this.addResolution(action, pair);
+                pair.status = 'resolved';
+            }
         }
 
-        this.conflictState.index = conflicts.length;
-        this.finalizeConflictResolution();
+        this.conflictState.index = queue.length;
+        this.showConflictSummary();
     }
 
     addResolution(action, pair) {
@@ -1895,7 +2059,7 @@ class App {
                 problem: pair.imported
             });
         } else if (action === 'update') {
-            // Replace with Imported -> Overwrite existing DB record using existing.id
+            // Replace with Imported -> Overwrite existing DB record preserving existing.id
             this.conflictState.resolutions.push({
                 action: 'update',
                 problem: {
@@ -1904,15 +2068,92 @@ class App {
                 }
             });
         } else if (action === 'insert') {
-            // Keep Both -> Import CSV row as a new entry with a fresh ID
+            // Keep Both -> Import CSV row as a new entry with a fresh ID & suffix if needed
+            const hasSameName = pair.imported.name.trim().toLowerCase() === pair.existing.name.trim().toLowerCase();
+            const copyName = hasSameName ? `${pair.imported.name} (Imported Copy)` : pair.imported.name;
+
             this.conflictState.resolutions.push({
                 action: 'insert',
                 problem: {
                     ...pair.imported,
-                    id: 'imp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6)
+                    id: 'imp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+                    name: copyName
                 }
             });
         }
+    }
+
+    showConflictSummary() {
+        if (!this.conflictState) return;
+        const { queue, resolutions, totalCount } = this.conflictState;
+
+        const activeView = document.getElementById('conflict-active-view');
+        const summaryView = document.getElementById('conflict-summary-view');
+
+        if (activeView) activeView.classList.add('hidden');
+        if (summaryView) summaryView.classList.remove('hidden');
+
+        let keptCount = 0;
+        let replacedCount = 0;
+        let bothCount = 0;
+        let skippedCount = 0;
+
+        resolutions.forEach(r => {
+            if (r.action === 'skip') keptCount++;
+            if (r.action === 'update') replacedCount++;
+            if (r.action === 'insert') bothCount++;
+        });
+
+        queue.forEach(item => {
+            if (item.status === 'skipped') skippedCount++;
+        });
+
+        const totalTextEl = document.getElementById('summary-total-text');
+        const countKeptEl = document.getElementById('summary-count-kept');
+        const countReplacedEl = document.getElementById('summary-count-replaced');
+        const countBothEl = document.getElementById('summary-count-both');
+        const countSkippedEl = document.getElementById('summary-count-skipped');
+        const btnReviewSkipped = document.getElementById('btn-review-skipped');
+        const skippedNumSpan = document.getElementById('summary-skipped-num');
+
+        if (totalTextEl) {
+            const resolvedCount = keptCount + replacedCount + bothCount;
+            totalTextEl.textContent = `Resolved ${resolvedCount} of ${totalCount} conflicts${skippedCount > 0 ? ` (${skippedCount} skipped)` : ''}`;
+        }
+
+        if (countKeptEl) countKeptEl.textContent = keptCount;
+        if (countReplacedEl) countReplacedEl.textContent = replacedCount;
+        if (countBothEl) countBothEl.textContent = bothCount;
+        if (countSkippedEl) countSkippedEl.textContent = skippedCount;
+
+        if (btnReviewSkipped && skippedNumSpan) {
+            if (skippedCount > 0) {
+                btnReviewSkipped.classList.remove('hidden');
+                skippedNumSpan.textContent = skippedCount;
+            } else {
+                btnReviewSkipped.classList.add('hidden');
+            }
+        }
+    }
+
+    reviewSkippedConflicts() {
+        if (!this.conflictState) return;
+        const skippedItems = this.conflictState.queue.filter(item => item.status === 'skipped');
+
+        if (skippedItems.length === 0) return;
+
+        skippedItems.forEach(item => item.status = 'pending');
+
+        this.conflictState.queue = skippedItems;
+        this.conflictState.index = 0;
+
+        const activeView = document.getElementById('conflict-active-view');
+        const summaryView = document.getElementById('conflict-summary-view');
+
+        if (activeView) activeView.classList.remove('hidden');
+        if (summaryView) summaryView.classList.add('hidden');
+
+        this.renderCurrentConflict();
     }
 
     finalizeConflictResolution() {
@@ -2593,6 +2834,7 @@ class JournalManager {
 
         // Modal elements
         this.modal = document.getElementById('journal-modal');
+        this.backdrop = document.getElementById('journal-modal-backdrop');
         this.btnCloseModal = document.getElementById('btn-close-journal-modal');
         this.btnCancel = document.getElementById('btn-cancel-journal');
         this.btnDelete = document.getElementById('btn-delete-journal');
@@ -2677,6 +2919,12 @@ class JournalManager {
             });
         }
 
+        if (this.backdrop) {
+            this.backdrop.addEventListener('click', (e) => {
+                this.closeModal();
+            });
+        }
+
         // Backdrop click to close journal modal when clicking outside card
         if (this.modal) {
             this.modal.addEventListener('click', (e) => {
@@ -2685,13 +2933,6 @@ class JournalManager {
                 }
             });
         }
-
-        // Global backdrop click fallback
-        document.addEventListener('click', (e) => {
-            if (this.modal && e.target === this.modal) {
-                this.closeModal();
-            }
-        });
 
         // Click empty state text to quickly write entry
         if (this.emptyState) {
@@ -3565,8 +3806,8 @@ class JournalManager {
                 if (this.draftIndicator) this.draftIndicator.classList.add('hidden');
             }
 
-            if (this.modalDateDisplay) this.modalDateDisplay.textContent = `Editing notes for ${this.formatDateDisplay(dateStr)}`;
-            if (this.modalTitleDisplay) this.modalTitleDisplay.textContent = "Journal Entry";
+            if (this.modalDateDisplay) this.modalDateDisplay.textContent = this.formatDateDisplay(dateStr);
+            if (this.modalTitleDisplay) this.modalTitleDisplay.textContent = "What's on your mind?";
             if (this.btnDelete) this.btnDelete.classList.add('hidden');
 
             const saveBtn = document.getElementById('btn-save-journal');
@@ -3582,8 +3823,8 @@ class JournalManager {
         if (this.inputDate) this.inputDate.value = entry.date;
         if (this.inputTitle) this.inputTitle.value = entry.title || '';
         if (this.inputContent) this.inputContent.value = entry.content || '';
-        if (this.modalDateDisplay) this.modalDateDisplay.textContent = `Editing notes for ${this.formatDateDisplay(entry.date)}`;
-        if (this.modalTitleDisplay) this.modalTitleDisplay.textContent = "Journal Entry";
+        if (this.modalDateDisplay) this.modalDateDisplay.textContent = this.formatDateDisplay(entry.date);
+        if (this.modalTitleDisplay) this.modalTitleDisplay.textContent = "Edit Journal Entry";
         if (this.btnDelete) this.btnDelete.classList.remove('hidden');
         if (this.draftIndicator) this.draftIndicator.classList.add('hidden');
 
@@ -3595,30 +3836,26 @@ class JournalManager {
     }
 
     showModal() {
-        if (!this.modal) {
-            this.modal = document.getElementById('journal-modal');
-        }
-        if (this.modal) {
-            this.modal.classList.remove('hidden');
-            this.modal.style.display = 'flex';
-            this.modal.style.opacity = '1';
-            this.modal.style.visibility = 'visible';
-            this.modal.style.pointerEvents = 'auto';
+        if (!this.modal) this.modal = document.getElementById('journal-modal');
+        if (!this.backdrop) this.backdrop = document.getElementById('journal-modal-backdrop');
 
-            void this.modal.offsetWidth; // Force DOM reflow for CSS transition
-            this.modal.classList.add('active');
+        if (this.modal) {
+            if (this.backdrop) this.backdrop.classList.remove('hidden');
+            this.modal.classList.remove('hidden');
             document.body.classList.add('body-scroll-locked');
-            
+
             setTimeout(() => {
+                if (this.backdrop) this.backdrop.classList.add('active');
+                this.modal.classList.add('active');
                 if (this.inputContent) this.inputContent.focus();
-            }, 50);
+            }, 10);
         }
     }
 
     closeModal() {
-        if (!this.modal) {
-            this.modal = document.getElementById('journal-modal');
-        }
+        if (!this.modal) this.modal = document.getElementById('journal-modal');
+        if (!this.backdrop) this.backdrop = document.getElementById('journal-modal-backdrop');
+
         if (this.modal) {
             const dateStr = (this.inputDate && this.inputDate.value) ? this.inputDate.value : this.getTodayDateStr();
             const content = this.inputContent ? this.inputContent.value.trim() : '';
@@ -3628,14 +3865,12 @@ class JournalManager {
             }
 
             this.modal.classList.remove('active');
+            if (this.backdrop) this.backdrop.classList.remove('active');
             document.body.classList.remove('body-scroll-locked');
             
             setTimeout(() => {
                 this.modal.classList.add('hidden');
-                this.modal.style.display = 'none';
-                this.modal.style.opacity = '0';
-                this.modal.style.visibility = 'hidden';
-                this.modal.style.pointerEvents = 'none';
+                if (this.backdrop) this.backdrop.classList.add('hidden');
             }, 250);
         }
     }

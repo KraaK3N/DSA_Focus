@@ -34,11 +34,12 @@
 - 2026-07-31 — Redesigned the Log table Problem Notes popup modal (`#notes-sidebar`) to be a centered popup modal matching the exact dark scratchpad modal aesthetic, with a terracotta orange heading ("Save Notes"), problem subtitle, inner dark well textarea, top-right close `✕` button, and bottom-right `Cancel` / `Save` action buttons.
 - 2026-07-31 — Updated 3D deck view card dimensions to a 7:5 vertical format (300px width x 420px height) and increased text snippet clamp to 7 lines for optimal vertical reading.
 - 2026-07-31 — Added the soft dotted matrix background grid pattern (`radial-gradient`) to `.scratchpad-modal-card` across light (`#e4dccb`) and dark (`rgba(255,255,255,0.08)`) modes for all popup modals.
-- 2026-07-31 — Audited and enhanced CSV upload button and duplicate handling logic: styled Windows File Explorer copy/replace style conflict modal with side-by-side card comparison, visual diff badges, top-right close ✕ button, Escape key handling, Cancel Import button, and batch resolution actions (Keep Existing, Replace with Imported, Keep Both, Skip All, Replace All, Keep All).
-- 2026-07-31 — Adjusted Problem Notes modal popup proportions to match reference aspect ratio: reduced max-width to `460px` and increased textarea min-height to `240px`.
+- 2026-07-31 — Rebuilt CSV import duplicate resolution to match Windows File Explorer UX: added top-right close `✕` button on all modal views, updated action button names matching Windows Explorer prompts (`Keep Existing (Skip New)`, `Replace with Imported`, `Keep Both Files`, `Apply this choice to all remaining conflicts` toggle checkbox, `Skip All (Keep Existing)`, `Replace All (Use Imported)`, `Keep All (Save Both)`), field-level diff detection with soft amber background highlight on differing fields and muted opacity on identical fields, `N field(s) differ` summary badge, `Skip for now` action and `Undo Last` resolution stack, keyboard controls (`Enter`, `Esc`, `Arrow keys`, focus trap), theme-aware custom webkit scrollbars, and an end-of-batch summary screen (`X kept` · `Y replaced` · `Z kept both` · `K skipped` with `Review Skipped Conflicts` and `Finish & Commit Import`).
+- 2026-07-31 — Redesigned "What's on your mind?" and "+ Write" / "+ Write Note" modal popup (`#journal-modal`) to match the centered Notes Modal popup (`notes-modal-card`) structure and aesthetic: backdrop blur overlay (`#journal-modal-backdrop`), terracotta orange heading, date subtitle, top-right close `✕` button, dark inner well textarea, title input, and bottom-right `Cancel` / `Save Entry` action buttons.
+- 2026-07-31 — Removed the redundant Journal Timeline section (`#journal-grid-wrapper` / `.journal-entries-card`) from the bottom of the Journal view as requested.
 
 ## Current Focus
-- Working on: Notes modal popup aspect ratio updated.
+- Working on: Journal Timeline Removal Completed.
 - Blocked on / open question: None
 - Next up: User review and validation
 
@@ -54,8 +55,10 @@
 - **2026-07-31** — Converted 3D coverflow deck cards from 2:1 horizontal to 7:5 vertical aspect ratio (300px width x 420px height) with updated drag physics and 7-line snippet clamp.
 - **2026-07-31** — Applied the soft radial dotted matrix grid pattern background to `.scratchpad-modal-card` across Light and Dark themes.
 - **2026-07-31** — Simplified Problem Notes modal top text to a sleek "Save Notes" title (1.15rem), removed header border line, and eliminated background shift on textarea focus.
-- **2026-07-31** — Verified and enhanced CSV upload button & duplicate conflict resolution system. Styled Windows File Explorer-style side-by-side modal with diff badges, top-right close ✕ button, Escape key cancel support, Cancel Import button, and batch resolution actions.
 - **2026-07-31** — Resized Problem Notes modal popup container to `max-width: 460px` and set textarea `min-height: 240px` for optimal popup proportions.
+- **2026-07-31** — Rebuilt CSV import duplicate resolution workflow to match Windows File Explorer UX. Added top-right close `✕` buttons, Windows Explorer-style action prompt names, queue management, progress indicator + bar, field-level diff highlights (`.is-diff` soft amber vs `.is-same` muted), `N field(s) differ` summary badge, batch checkbox toggle (`Apply this choice to all remaining conflicts`), `Skip for now`, `Undo Last`, keyboard navigation (`Enter`/`Esc`/`Arrows`), theme-aware custom scrollbars, and an end-of-batch summary screen with review of skipped conflicts and atomic commit.
+- **2026-07-31** — Redesigned "What's on your mind?" and "+ Write Note" / "+ Write" modal popup (`#journal-modal`) to pop up cleanly matching the exact centered Notes modal popup (`notes-modal-card`) aesthetic with backdrop blur (`#journal-modal-backdrop`), terracotta title, date subtitle, top-right close `✕`, dark inner well textarea, title field, and bottom-right `Cancel` / `Save Entry` buttons.
+- **2026-07-31** — Removed the Journal Timeline card at the bottom of the Journal section (`index.html`).
 
 ## Known Gotchas
 > Things that look like bugs but aren't, dead ends already tried, or quirks of this
