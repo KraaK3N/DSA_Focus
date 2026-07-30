@@ -125,9 +125,12 @@ class FocusTimer {
         this.modal = document.getElementById('notification-modal');
         this.quoteEl = document.getElementById('motivational-quote');
 
-        // SVG Ring circumference setup (r = 90)
-        this.circumference = 2 * Math.PI * 90;
-        this.ring.style.strokeDasharray = this.circumference;
+        // SVG Ring circumference setup
+        this.radius = (this.ring && this.ring.r && this.ring.r.baseVal && this.ring.r.baseVal.value) ? this.ring.r.baseVal.value : 96;
+        this.circumference = 2 * Math.PI * this.radius;
+        if (this.ring) {
+            this.ring.style.strokeDasharray = this.circumference;
+        }
 
         this.quotes = [
             "Take a hint. Don't waste another 30 minutes.",
@@ -1187,27 +1190,29 @@ class App {
 
     bindTheme() {
         const themeBtn = document.getElementById('btn-theme-toggle');
-        
-        // Load initial theme state
+        if (!themeBtn) return;
+
+        const updateThemeUI = (isDark) => {
+            if (isDark) {
+                document.body.classList.add('dark-theme');
+                themeBtn.innerHTML = `<svg class="theme-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg><span class="theme-text">Light</span>`;
+            } else {
+                document.body.classList.remove('dark-theme');
+                themeBtn.innerHTML = `<svg class="theme-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg><span class="theme-text">Dark</span>`;
+            }
+        };
+
         const isDark = Storage.get('dark_theme_active') === true;
-        if (isDark) {
-            document.body.classList.add('dark-theme');
-            themeBtn.textContent = '☀️ Light Mode';
-        } else {
-            document.body.classList.remove('dark-theme');
-            themeBtn.textContent = '🌙 Dark Mode';
-        }
+        updateThemeUI(isDark);
 
         themeBtn.addEventListener('click', () => {
             const currentlyDark = document.body.classList.contains('dark-theme');
             if (currentlyDark) {
-                document.body.classList.remove('dark-theme');
-                themeBtn.textContent = '🌙 Dark Mode';
+                updateThemeUI(false);
                 Storage.set('dark_theme_active', false);
                 Toast.show('Switched to light theme', 'info');
             } else {
-                document.body.classList.add('dark-theme');
-                themeBtn.textContent = '☀️ Light Mode';
+                updateThemeUI(true);
                 Storage.set('dark_theme_active', true);
                 Toast.show('Switched to dark theme', 'info');
             }

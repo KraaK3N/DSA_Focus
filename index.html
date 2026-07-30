@@ -20,22 +20,27 @@
 <div class="wrap header-wrap">
 <div class="header-left">
 <div class="mark">DSA<span>·</span>FOCUS</div>
-<nav class="nav-tabs">
-<button class="tab-btn active" id="tab-dashboard">Dashboard</button>
-<button class="tab-btn" id="tab-log">Log</button>
-<button class="tab-btn" id="tab-journal">Journal</button>
-<button class="tab-btn" id="btn-theme-toggle" title="Toggle dark/light theme">🌙 Dark Mode</button>
+<nav class="nav-tabs" role="tablist">
+<button class="tab-btn active" id="tab-dashboard" role="tab" aria-selected="true">Dashboard</button>
+<button class="tab-btn" id="tab-log" role="tab" aria-selected="false">Log</button>
+<button class="tab-btn" id="tab-journal" role="tab" aria-selected="false">Journal</button>
 </nav>
 </div>
 
+<div class="header-right">
 <div class="progress-container">
 <div class="progress-info">
 <span>Daily Goal <button class="btn-edit-goal" id="btn-edit-goal" title="Set daily goal" aria-label="Set daily goal"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg></button></span>
-<span id="progress-text">0/10</span>
+<span id="progress-text" class="font-mono">0/10</span>
 </div>
 <div class="progress-bar-bg">
 <div class="progress-bar-fill" id="daily-progress"></div>
 </div>
+</div>
+<button class="btn-theme-pill" id="btn-theme-toggle" aria-label="Toggle dark mode" title="Toggle theme">
+<svg class="theme-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+<span class="theme-text">Dark</span>
+</button>
 </div>
 </div>
 </header>
@@ -120,9 +125,9 @@ Clear
 </div>
 
 <div class="timer-display-container">
-<svg class="progress-ring" width="200" height="200" viewBox="0 0 200 200">
-<circle class="progress-ring__bg" stroke-width="5" fill="transparent" r="90" cx="100" cy="100"/>
-<circle class="progress-ring__circle" id="timer-ring" stroke-width="5" fill="transparent" r="90" cx="100" cy="100"/>
+<svg class="progress-ring" width="220" height="220" viewBox="0 0 220 220">
+<circle class="progress-ring__bg" stroke-width="6" fill="transparent" r="96" cx="110" cy="110"/>
+<circle class="progress-ring__circle" id="timer-ring" stroke-width="6" fill="transparent" r="96" cx="110" cy="110"/>
 </svg>
 <div class="time-text" id="countdown-display">20:00</div>
 </div>
@@ -138,9 +143,11 @@ Clear
 <!-- Scratchpad Card -->
 <div class="card scratchpad-card">
 <div class="scratchpad-header">
-<div class="eyebrow scratchpad-label">Scratch Board</div>
+<div class="eyebrow scratchpad-label">Scratch Pad</div>
 <div class="scratchpad-actions">
-<button class="btn-scratch-tool" id="btn-scratch-clear" type="button" title="Clear board" aria-label="Clear scratch board">🧹</button>
+<button class="btn-scratch-tool" id="btn-scratch-clear" type="button" title="Clear board" aria-label="Clear scratch board">
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+</button>
 </div>
 </div>
 
@@ -151,7 +158,7 @@ Clear
 <div id="scratchpad-slash-menu" class="slash-menu hidden">
 <div class="slash-menu-header">Slash Commands</div>
 <div class="slash-item" data-cmd="todo">
-<span class="icon">☑️</span>
+<span class="icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg></span>
 <div class="details">
 <span class="name">To-do List</span>
 <span class="desc">Create a checkbox task</span>
@@ -315,7 +322,7 @@ Clear
 <!-- Pace & Projection Metrics Grid -->
 <div class="pace-metrics-grid">
 <div class="pace-metric-box pace-metric-velocity">
-<div class="pace-metric-icon">⚡</div>
+<div class="pace-metric-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg></div>
 <div class="pace-metric-body">
 <div class="pace-metric-val" id="pace-velocity-val">0.0 / week</div>
 <div class="pace-metric-label" id="pace-velocity-label">0.0 / day (7d window)</div>
@@ -323,7 +330,7 @@ Clear
 </div>
 
 <div class="pace-metric-box pace-metric-time">
-<div class="pace-metric-icon">⌛</div>
+<div class="pace-metric-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></div>
 <div class="pace-metric-body">
 <div class="pace-metric-val" id="pace-time-val">~0.0 weeks</div>
 <div class="pace-metric-label" id="pace-time-label">0 days remaining</div>
@@ -331,7 +338,7 @@ Clear
 </div>
 
 <div class="pace-metric-box pace-metric-date">
-<div class="pace-metric-icon">📅</div>
+<div class="pace-metric-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg></div>
 <div class="pace-metric-body">
 <div class="pace-metric-val" id="pace-date-val">N/A</div>
 <div class="pace-metric-label" id="pace-date-label">Est. Completion Date</div>
@@ -351,8 +358,14 @@ Clear
 </div>
 <div class="spreadsheet-actions">
 <input type="file" id="csv-file-input" accept=".csv" class="hidden">
-<button class="btn secondary" id="btn-import-csv">📥 Upload CSV</button>
-<button class="btn secondary" id="btn-export-csv">💾 Download CSV</button>
+<button class="btn secondary" id="btn-import-csv">
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+<span>Import CSV</span>
+</button>
+<button class="btn secondary" id="btn-export-csv">
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+<span>Export CSV</span>
+</button>
 </div>
 </div>
 
@@ -417,7 +430,8 @@ Clear
 <h2>Daily Journal & Scratchpad</h2>
 </div>
 <button type="button" class="btn primary journal-new-btn" id="btn-open-journal-modal" data-action="open-journal">
-<span class="btn-icon-symbol">✏️</span> What's on your mind?
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+<span>What's on your mind?</span>
 </button>
 </div>
 </div>
@@ -456,10 +470,12 @@ Clear
 <div class="journal-view-toggle-bar">
   <div class="view-toggle-pill-group" role="group" aria-label="Switch view">
     <button type="button" id="btn-view-grid" class="toggle-pill-btn active" data-view="grid" aria-pressed="true">
-      <span class="toggle-icon">☰</span> Grid
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+      <span>Grid</span>
     </button>
     <button type="button" id="btn-view-deck" class="toggle-pill-btn" data-view="deck" aria-pressed="false">
-      <span class="toggle-icon">🃏</span> Deck
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"></rect><path d="M12 12h.01"></path></svg>
+      <span>Deck</span>
     </button>
   </div>
 </div>
@@ -535,7 +551,9 @@ Clear
 <!-- Notification Modal -->
 <div id="notification-modal" class="modal hidden" role="dialog" aria-modal="true">
 <div class="modal-content">
-<div class="modal-icon">⏰</div>
+<div class="modal-icon">
+<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary)" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+</div>
 <h2>Time's Up!</h2>
 <p id="motivational-quote">"Progress beats perfection."</p>
 <p class="sub-text">Either take a hint or move on to the next step.</p>
@@ -569,13 +587,15 @@ Clear
 <div class="modal-content conflict-modal-content">
 <div class="conflict-header">
 <div class="conflict-title-group">
-<span class="conflict-icon">⚡</span>
+<span class="conflict-icon">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary)" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+</span>
 <div>
 <div class="eyebrow conflict-eyebrow">Duplicate Resolution</div>
 <h2 class="conflict-title">Import Conflict Detected</h2>
 </div>
 </div>
-<span class="conflict-counter-badge" id="conflict-counter">Conflict 1 of 1</span>
+<span class="conflict-counter-badge font-mono" id="conflict-counter">Conflict 1 of 1</span>
 </div>
 
 <p class="conflict-subtitle" id="conflict-summary-text">Found duplicate problem entries. Choose which version to keep.</p>
@@ -586,7 +606,10 @@ Clear
 <!-- Left: Existing DB Record -->
 <div class="conflict-card conflict-card-existing">
 <div class="conflict-card-header">
-<span class="conflict-card-tag existing-tag">🗄️ Existing in Database</span>
+<span class="conflict-card-tag existing-tag">
+<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M21 19c0 1.66-4 3-9 3s-9-1.34-9-3"></path></svg>
+Existing in Database
+</span>
 </div>
 <div class="conflict-card-details" id="conflict-existing-details">
 <!-- Injected dynamically -->
@@ -598,7 +621,10 @@ Clear
 <!-- Right: Imported CSV Record -->
 <div class="conflict-card conflict-card-imported">
 <div class="conflict-card-header">
-<span class="conflict-card-tag imported-tag">📄 Imported from CSV</span>
+<span class="conflict-card-tag imported-tag">
+<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+Imported from CSV
+</span>
 </div>
 <div class="conflict-card-details" id="conflict-imported-details">
 <!-- Injected dynamically -->
@@ -609,13 +635,16 @@ Clear
 <!-- Resolution Actions for current conflict -->
 <div class="conflict-actions-bar">
 <button type="button" class="btn conflict-btn btn-keep-existing" id="btn-keep-existing">
-🔵 Keep Existing
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M21 19c0 1.66-4 3-9 3s-9-1.34-9-3"></path></svg>
+Keep Existing
 </button>
 <button type="button" class="btn conflict-btn btn-replace-imported" id="btn-replace-imported">
-🟢 Replace with Imported
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+Replace with Imported
 </button>
 <button type="button" class="btn conflict-btn btn-keep-both" id="btn-keep-both">
-🟡 Keep Both
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+Keep Both
 </button>
 </div>
 
@@ -642,7 +671,9 @@ Do this for all remaining conflicts
 
 <div class="scratchpad-header">
 <div class="scratchpad-badge">
-<span class="scratchpad-icon">📝</span>
+<span class="scratchpad-icon">
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+</span>
 <span>DAILY SCRATCHPAD</span>
 </div>
 <h2 id="journal-modal-title">What's on your mind?</h2>
