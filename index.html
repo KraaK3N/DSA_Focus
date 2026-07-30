@@ -267,7 +267,7 @@ Clear
 </aside>
 </main>
 
-<!-- Pace & Completion Projection Card (Positioned below main dashboard view) -->
+<!-- Pace & Completion Projection Card (Positioned ONLY in Dashboard View) -->
 <section class="wrap pace-section" id="pace-section">
 <div class="card pace-card" id="pace-projection-card">
 <div class="pace-card-header">
@@ -469,45 +469,6 @@ problems solved
 <p class="big">DSA Focus Dashboard</p>
 <p>Designed for distraction-free, highly analytical practice sessions. Store data locally in your browser.</p>
 </div>
-<div class="deck-counter-badge" id="deck-counter-badge">Day 1 of 31</div>
-</div>
-
-<div class="deck-stage-wrapper" id="deck-stage-wrapper">
-<button type="button" class="deck-arrow-btn deck-arrow-prev" id="btn-deck-prev" aria-label="Previous Card">‹</button>
-<div class="deck-cards-viewport" id="deck-cards-viewport">
-<div class="deck-cards-track" id="deck-cards-track">
-<!-- 3D Cards rendered dynamically by JS -->
-</div>
-</div>
-<button type="button" class="deck-arrow-btn deck-arrow-next" id="btn-deck-next" aria-label="Next Card">›</button>
-</div>
-
-<div class="deck-pagination-bar" id="deck-pagination-bar">
-<!-- Dynamic Pagination Scrubber Dots -->
-</div>
-</div>
-</div>
-
-<!-- Journal Entries List -->
-<div class="card journal-entries-card">
-<div class="entries-header">
-<h3>Journal Timeline</h3>
-<span class="badge-count" id="journal-entries-count">0 entries</span>
-</div>
-<div class="journal-entries-list" id="journal-entries-list">
-<!-- Entries populated dynamically -->
-</div>
-<p class="empty-state hidden" id="journal-empty">No journal entries yet for this month. Click "+ What's on your mind?" or any date cell above to write your first entry!</p>
-</div>
-</section>
-
-<!-- Footer / Keyboard Shortcuts -->
-<footer>
-<div class="wrap footer-wrap">
-<div>
-<p class="big">DSA Focus Dashboard</p>
-<p>Designed for distraction-free, highly analytical practice sessions. Store data locally in your browser.</p>
-</div>
 <div class="shortcuts-bar">
 <div class="shortcut"><kbd>Space</kbd> Start/Pause</div>
 <div class="shortcut"><kbd>R</kbd> Reset</div>
@@ -619,6 +580,7 @@ Do this for all remaining conflicts
 </div>
 </div>
 </div>
+
 <!-- Scratchpad Writing Modal ("What's on your mind?") -->
 <div class="modal-backdrop hidden" id="journal-modal" role="dialog" aria-modal="true" aria-labelledby="journal-modal-title">
 <div class="scratchpad-modal-card">
@@ -659,12 +621,6 @@ Do this for all remaining conflicts
 </div>
 </div>
 </form>
-</div>
-</div>
-
-<script src="script.js"></script>
-</body>
-</html>
 </div>
 </div>
 

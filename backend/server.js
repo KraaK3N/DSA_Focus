@@ -87,6 +87,21 @@ db.serialize(() => {
             console.log('KV table checked/created.');
         }
     });
+
+    db.run(`CREATE TABLE IF NOT EXISTS journals (
+        id TEXT PRIMARY KEY,
+        date TEXT,
+        timestamp INTEGER,
+        title TEXT,
+        content TEXT,
+        updatedAt INTEGER
+    )`, (err) => {
+        if (err) {
+            console.error('Error creating journals table:', err.message);
+        } else {
+            console.log('Journals table checked/created.');
+        }
+    });
 });
 
 // GET all problems
@@ -150,6 +165,58 @@ app.delete('/api/problems/:id', (req, res) => {
     db.run("DELETE FROM problems WHERE id = ?", [id], function(err) {
         if (err) {
             console.error('DELETE Error:', err.message);
+            return res.status(500).json({ error: err.message });
+        }
+        res.json({ success: true, changes: this.changes });
+    });
+});
+
+// GET all journals
+app.get('/api/journals', (req, res) => {
+    db.all("SELECT * FROM journals ORDER BY date DESC, timestamp DESC", [], (err, rows) => {
+        if (err) {
+            console.error('GET Journals Error:', err.message);
+            return res.status(500).json({ error: err.message });
+        }
+        res.json(rows);
+    });
+});
+
+// POST (Insert or Replace) a journal entry
+app.post('/api/journals', (req, res) => {
+    const j = req.body;
+    if (!j.id || !j.date) {
+        return res.status(400).json({ error: 'Missing required fields (id, date)' });
+    }
+
+    const query = `
+        INSERT OR REPLACE INTO journals (
+            id, date, timestamp, title, content, updatedAt
+        ) VALUES (?, ?, ?, ?, ?, ?)
+    `;
+
+    db.run(query, [
+        j.id,
+        j.date,
+        j.timestamp || Date.now(),
+        j.title || '',
+        j.content || '',
+        j.updatedAt || Date.now()
+    ], function(err) {
+        if (err) {
+            console.error('POST Journal Error:', err.message);
+            return res.status(500).json({ error: err.message });
+        }
+        res.json({ success: true, id: j.id });
+    });
+});
+
+// DELETE a journal entry by ID
+app.delete('/api/journals/:id', (req, res) => {
+    const { id } = req.params;
+    db.run("DELETE FROM journals WHERE id = ?", [id], function(err) {
+        if (err) {
+            console.error('DELETE Journal Error:', err.message);
             return res.status(500).json({ error: err.message });
         }
         res.json({ success: true, changes: this.changes });

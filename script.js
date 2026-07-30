@@ -4,6 +4,19 @@
  * ============================================================
  */
 
+// Global fail-safe helper to open journal modal from anywhere (inline onclicks, console, buttons)
+window.openJournalModal = function(dateStr) {
+    if (window.dsaApp) {
+        if (typeof window.dsaApp.switchTab === 'function') {
+            window.dsaApp.switchTab('journal');
+        }
+        if (window.dsaApp.journalManager) {
+            const targetDate = dateStr || window.dsaApp.journalManager.getTodayDateStr();
+            window.dsaApp.journalManager.openModalForDate(targetDate);
+        }
+    }
+};
+
 /* ─── 1. Local Storage Wrapper ─────────────────────────────── */
 class Storage {
     static get(key) {
@@ -825,6 +838,10 @@ class App {
         this.problems = [];
         this.editingId = null;
         this.dailyGoal = 10;
+        this.targetTotalProblems = 474;
+        this.externalSolvedOffset = 0;
+        this.paceWindowDays = 7;
+        this.paceWeightedMode = false;
 
         // View Management (Dashboard vs Spreadsheet Log)
         this.activeTab = 'dashboard';
@@ -836,6 +853,12 @@ class App {
         this.bindTheme();
         this.bindNotesSidebar();
         this.bindGoalEvents();
+        this.bindCSVImport();
+        this.bindConflictModalEvents();
+        this.bindPaceEvents();
+        
+        // Initialize Journal Manager
+        this.journalManager = new JournalManager(this);
         
         // Load data asynchronously from local server
         this.loadProblems();
@@ -851,6 +874,7 @@ class App {
 
     async loadProblems() {
         await this.loadGoal();
+        await this.loadPaceSettings();
         try {
             const response = await fetch('http://localhost:3000/api/problems');
             if (!response.ok) throw new Error('Network response was not ok');
@@ -884,44 +908,79 @@ class App {
         const sidebar = document.getElementById('notes-sidebar');
         const backdrop = document.getElementById('notes-sidebar-backdrop');
         const closeBtn = document.getElementById('notes-sidebar-close');
+        const cancelBtn = document.getElementById('notes-modal-cancel');
+        const saveBtn = document.getElementById('notes-modal-save');
+        const textarea = document.getElementById('notes-modal-textarea');
 
-        const closeSidebar = () => {
+        const closeModal = () => {
             sidebar.classList.remove('active');
             backdrop.classList.remove('active');
+            document.body.classList.remove('body-scroll-locked');
             setTimeout(() => {
                 sidebar.classList.add('hidden');
                 backdrop.classList.add('hidden');
-            }, 300); // Wait for transitout animation
+            }, 250);
         };
 
-        closeBtn.addEventListener('click', closeSidebar);
-        backdrop.addEventListener('click', closeSidebar);
-        
-        // Escape key to close sidebar
+        if (closeBtn) closeBtn.addEventListener('click', closeModal);
+        if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
+        if (backdrop) backdrop.addEventListener('click', closeModal);
+
+        // Click outside modal card (on sidebar overlay background) to close popup
+        if (sidebar) {
+            sidebar.addEventListener('click', (e) => {
+                if (e.target === sidebar) {
+                    closeModal();
+                }
+            });
+        }
+
+        if (saveBtn) {
+            saveBtn.addEventListener('click', () => {
+                if (this.currentEditingProblemId) {
+                    const newNotes = textarea ? textarea.value.trim() : '';
+                    const problem = this.problems.find(p => p.id === this.currentEditingProblemId);
+                    if (problem) {
+                        problem.notes = newNotes;
+                        Storage.set('dsa_problems', this.problems);
+                        this.saveProblemToServer(problem, true);
+                        this.renderSpreadsheet();
+                        this.updateStats();
+                        Toast.show(`Notes updated for "${problem.name}" ✓`, 'success');
+                    }
+                }
+                closeModal();
+            });
+        }
+
+        // Escape key to close modal
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && !sidebar.classList.contains('hidden')) {
-                closeSidebar();
+                closeModal();
             }
         });
     }
 
-    showNotesSidebar(problemName, notes) {
+    showNotesSidebar(problemName, notes, problemId = null) {
         const sidebar = document.getElementById('notes-sidebar');
         const backdrop = document.getElementById('notes-sidebar-backdrop');
         const titleEl = document.getElementById('notes-sidebar-title');
-        const contentEl = document.getElementById('notes-sidebar-content');
+        const textarea = document.getElementById('notes-modal-textarea');
 
-        titleEl.textContent = problemName;
-        contentEl.textContent = notes || 'No notes available.';
+        this.currentEditingProblemId = problemId;
+        if (titleEl) titleEl.textContent = problemName;
+        if (textarea) textarea.value = notes || '';
 
         // Show elements (make visible in layout)
         sidebar.classList.remove('hidden');
         backdrop.classList.remove('hidden');
-        
+        document.body.classList.add('body-scroll-locked');
+
         // Trigger CSS transition animation
         setTimeout(() => {
             sidebar.classList.add('active');
             backdrop.classList.add('active');
+            if (textarea) textarea.focus();
         }, 10);
     }
 
@@ -1056,9 +1115,11 @@ class App {
     bindTabs() {
         const tabDashboard = document.getElementById('tab-dashboard');
         const tabLog = document.getElementById('tab-log');
+        const tabJournal = document.getElementById('tab-journal');
 
-        tabDashboard.addEventListener('click', () => this.switchTab('dashboard'));
-        tabLog.addEventListener('click', () => this.switchTab('log'));
+        if (tabDashboard) tabDashboard.addEventListener('click', () => this.switchTab('dashboard'));
+        if (tabLog) tabLog.addEventListener('click', () => this.switchTab('log'));
+        if (tabJournal) tabJournal.addEventListener('click', () => this.switchTab('journal'));
     }
 
     switchTab(tabName) {
@@ -1067,20 +1128,40 @@ class App {
 
         const tabDashboard = document.getElementById('tab-dashboard');
         const tabLog = document.getElementById('tab-log');
+        const tabJournal = document.getElementById('tab-journal');
+
         const viewDashboard = document.getElementById('dashboard-view');
         const viewLog = document.getElementById('log-view');
+        const viewJournal = document.getElementById('journal-view');
+        const paceSection = document.getElementById('pace-section');
+
+        if (tabDashboard) tabDashboard.classList.remove('active');
+        if (tabLog) tabLog.classList.remove('active');
+        if (tabJournal) tabJournal.classList.remove('active');
+
+        if (viewDashboard) viewDashboard.classList.add('hidden');
+        if (viewLog) viewLog.classList.add('hidden');
+        if (viewJournal) viewJournal.classList.add('hidden');
+        if (paceSection) paceSection.classList.add('hidden');
 
         if (tabName === 'dashboard') {
-            tabDashboard.classList.add('active');
-            tabLog.classList.remove('active');
-            viewDashboard.classList.remove('hidden');
-            viewLog.classList.add('hidden');
-        } else {
-            tabDashboard.classList.remove('active');
-            tabLog.classList.add('active');
-            viewDashboard.classList.add('hidden');
-            viewLog.classList.remove('hidden');
+            if (tabDashboard) tabDashboard.classList.add('active');
+            if (viewDashboard) viewDashboard.classList.remove('hidden');
+            if (paceSection) paceSection.classList.remove('hidden');
+        } else if (tabName === 'log') {
+            if (tabLog) tabLog.classList.add('active');
+            if (viewLog) viewLog.classList.remove('hidden');
             this.renderSpreadsheet();
+        } else if (tabName === 'journal') {
+            if (tabJournal) tabJournal.classList.add('active');
+            if (viewJournal) viewJournal.classList.remove('hidden');
+            if (this.journalManager) {
+                this.journalManager.renderCalendar();
+                this.journalManager.renderEntriesList();
+                if (this.journalManager.activeView === 'deck') {
+                    this.journalManager.renderDeckView();
+                }
+            }
         }
     }
 
@@ -1357,9 +1438,9 @@ class App {
             `;
 
             const notesCell = tr.querySelector('.notes-cell');
-            if (p.notes) {
+            if (notesCell) {
                 notesCell.addEventListener('click', () => {
-                    this.showNotesSidebar(p.name, p.notes);
+                    this.showNotesSidebar(p.name, p.notes || '', p.id);
                 });
             }
 
@@ -1387,34 +1468,519 @@ class App {
             return;
         }
 
-        let csvContent = "data:text/csv;charset=utf-8,";
-        csvContent += "Date,Problem Name,URL,Platform,Difficulty,Topic,Time Spent,Hint Used,Solved Independently,Revision Required,Notes\r\n";
+        const headers = [
+            "Date", "Problem Name", "URL", "Platform", "Difficulty", 
+            "Topic", "Time Spent", "Hint Used", "Solved Independently", 
+            "Revision Required", "Notes"
+        ];
+
+        const escapeCell = (val) => {
+            if (val === undefined || val === null) return '""';
+            const str = String(val).replace(/"/g, '""');
+            return `"${str}"`;
+        };
+
+        const rows = [headers.join(",")];
 
         this.problems.forEach(p => {
             const row = [
-                p.date,
-                `"${p.name.replace(/"/g, '""')}"`,
-                `"${(p.url || '').replace(/"/g, '""')}"`,
-                `"${p.platform.replace(/"/g, '""')}"`,
-                p.difficulty,
-                `"${p.topic.replace(/"/g, '""')}"`,
-                p.timeSpent,
-                p.hintUsed ? "Yes" : "No",
-                p.independent ? "Yes" : "No",
-                p.needsRevision ? "Yes" : "No",
-                `"${(p.notes || '').replace(/"/g, '""')}"`
+                escapeCell(p.date),
+                escapeCell(p.name),
+                escapeCell(p.url || ''),
+                escapeCell(p.platform || 'N/A'),
+                escapeCell(p.difficulty),
+                escapeCell(p.topic || 'General'),
+                escapeCell(p.timeSpent || '0s'),
+                escapeCell(p.hintUsed ? "Yes" : "No"),
+                escapeCell(p.independent ? "Yes" : "No"),
+                escapeCell(p.needsRevision ? "Yes" : "No"),
+                escapeCell(p.notes || '')
             ];
-            csvContent += row.join(",") + "\r\n";
+            rows.push(row.join(","));
         });
 
-        const encodedUri = encodeURI(csvContent);
+        const csvString = rows.join("\r\n");
+        const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
-        link.setAttribute("href", encodedUri);
-        link.setAttribute("download", `dsa_problems_export_${new Date().toISOString().split('T')[0]}.csv`);
+        const today = new Date().toISOString().split('T')[0];
+
+        link.setAttribute("href", url);
+        link.setAttribute("download", `dsa_problems_export_${today}.csv`);
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
         Toast.show('CSV Export downloaded!', 'success');
+    }
+
+    /* ─── CSV Import & Conflict Resolution ───────────────────── */
+
+    bindCSVImport() {
+        const btnImport = document.getElementById('btn-import-csv');
+        const fileInput = document.getElementById('csv-file-input');
+
+        if (!btnImport || !fileInput) return;
+
+        btnImport.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            this.handleCSVUpload(e);
+        });
+    }
+
+    handleCSVUpload(e) {
+        const file = e.target.files && e.target.files[0];
+        // Reset file input value so the same file can be uploaded again if needed
+        e.target.value = '';
+
+        if (!file) return;
+
+        // 1. Extension validation
+        if (!file.name.toLowerCase().endsWith('.csv')) {
+            Toast.show('Invalid file format. Please upload a .csv file.', 'error');
+            return;
+        }
+
+        // 2. File size validation (5MB max)
+        const MAX_SIZE = 5 * 1024 * 1024;
+        if (file.size > MAX_SIZE) {
+            Toast.show('File size exceeds the 5MB limit.', 'error');
+            return;
+        }
+
+        // 3. Empty file check
+        if (file.size === 0) {
+            Toast.show('The selected CSV file is empty.', 'error');
+            return;
+        }
+
+        // 4. Parsing with PapaParse (or fallback custom parser)
+        if (window.Papa) {
+            Papa.parse(file, {
+                header: true,
+                skipEmptyLines: 'greedy',
+                complete: (results) => {
+                    if (results.errors && results.errors.length > 0 && (!results.data || results.data.length === 0)) {
+                        console.error('PapaParse errors:', results.errors);
+                        Toast.show('Failed to parse CSV file structure.', 'error');
+                        return;
+                    }
+                    this.processImportRows(results.data);
+                },
+                error: (err) => {
+                    console.error('PapaParse execution error:', err);
+                    Toast.show('Error reading CSV file: ' + err.message, 'error');
+                }
+            });
+        } else {
+            // Fallback robust parser if Papa is offline
+            const reader = new FileReader();
+            reader.onload = (evt) => {
+                try {
+                    const rows = this.parseCSVText(evt.target.result);
+                    this.processImportRows(rows);
+                } catch (err) {
+                    console.error('Fallback parse error:', err);
+                    Toast.show('Error parsing CSV file: ' + err.message, 'error');
+                }
+            };
+            reader.onerror = () => Toast.show('Failed to read CSV file.', 'error');
+            reader.readAsText(file);
+        }
+    }
+
+    processImportRows(rows) {
+        if (!rows || rows.length === 0) {
+            Toast.show('No rows found in the CSV file.', 'error');
+            return;
+        }
+
+        const getVal = (row, possibleKeys) => {
+            for (const k of Object.keys(row)) {
+                const cleanKey = k.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+                for (const pk of possibleKeys) {
+                    if (cleanKey === pk.toLowerCase().replace(/[^a-z0-9]/g, '')) {
+                        return row[k];
+                    }
+                }
+            }
+            return undefined;
+        };
+
+        // Header validation: check if required 'name' or 'Problem Name' header is present
+        const sampleRow = rows[0] || {};
+        const hasNameHeader = getVal(sampleRow, ['name', 'problem name', 'problem_name', 'title', 'problem']) !== undefined;
+
+        if (!hasNameHeader) {
+            Toast.show('Invalid CSV format: Missing required header "Problem Name" or "name".', 'error');
+            return;
+        }
+
+        const parsedProblems = [];
+        const parseBool = (v, defaultVal = false) => {
+            if (v === undefined || v === null || v === '') return defaultVal;
+            const s = String(v).trim().toLowerCase();
+            return s === 'yes' || s === 'true' || s === '1' || s === 'y';
+        };
+
+        rows.forEach((r, idx) => {
+            const nameVal = getVal(r, ['name', 'problem name', 'problem_name', 'title', 'problem']);
+            if (!nameVal || !String(nameVal).trim()) return; // skip rows with empty problem name
+
+            const dateVal = getVal(r, ['date', 'date logged', 'created_at']);
+            const urlVal = getVal(r, ['url', 'link', 'problem url', 'problem link']);
+            const platformVal = getVal(r, ['platform', 'site']);
+            const difficultyVal = getVal(r, ['difficulty', 'diff']);
+            const topicVal = getVal(r, ['topic', 'category', 'tags']);
+            const notesVal = getVal(r, ['notes', 'note', 'description', 'solution']);
+            const timeSpentVal = getVal(r, ['time spent', 'timespent', 'time_spent', 'duration']);
+            const hintVal = getVal(r, ['hint used', 'hintused', 'hint_used', 'hint']);
+            const soloVal = getVal(r, ['solved independently', 'independent', 'solved_independently', 'solo']);
+            const revisionVal = getVal(r, ['revision required', 'needsrevision', 'revision_required', 'revision', 'revise']);
+
+            const timeSpentStr = timeSpentVal ? String(timeSpentVal).trim() : '0s';
+            const timeSecs = this.parseSecondsFromFormatted(timeSpentStr);
+
+            let diffStr = difficultyVal ? String(difficultyVal).trim() : 'Medium';
+            diffStr = this.capitalize(diffStr);
+            if (!['Easy', 'Medium', 'Hard'].includes(diffStr)) {
+                diffStr = 'Medium';
+            }
+
+            parsedProblems.push({
+                id: 'imp_' + Date.now() + '_' + idx + '_' + Math.random().toString(36).substr(2, 5),
+                date: (dateVal && String(dateVal).trim()) ? String(dateVal).trim() : new Date().toISOString().split('T')[0],
+                name: String(nameVal).trim(),
+                url: urlVal ? String(urlVal).trim() : '',
+                platform: (platformVal && String(platformVal).trim()) ? String(platformVal).trim() : 'N/A',
+                difficulty: diffStr,
+                topic: (topicVal && String(topicVal).trim()) ? String(topicVal).trim() : 'General',
+                notes: notesVal ? String(notesVal).trim() : '',
+                hintUsed: parseBool(hintVal, false),
+                independent: parseBool(soloVal, true),
+                needsRevision: parseBool(revisionVal, false),
+                timeSpent: timeSpentStr,
+                timeSeconds: timeSecs
+            });
+        });
+
+        if (parsedProblems.length === 0) {
+            Toast.show('No valid problem records found in CSV file.', 'error');
+            return;
+        }
+
+        this.detectDuplicatesAndImport(parsedProblems);
+    }
+
+    detectDuplicatesAndImport(importedProblems) {
+        const stagedNonConflicting = [];
+        const conflicts = [];
+
+        importedProblems.forEach(imported => {
+            const importedUrl = imported.url ? imported.url.trim().toLowerCase() : '';
+            const importedName = imported.name.trim().toLowerCase();
+            const importedPlatform = imported.platform.trim().toLowerCase();
+
+            const existingMatch = this.problems.find(existing => {
+                const existingUrl = existing.url ? existing.url.trim().toLowerCase() : '';
+                const existingName = existing.name.trim().toLowerCase();
+                const existingPlatform = existing.platform.trim().toLowerCase();
+
+                // Match Criteria (Requirement A):
+                // 1. Exact match on url (if present and non-empty), OR
+                // 2. Exact match on (name + platform) case-insensitively
+                const hasUrlMatch = importedUrl.length > 0 && existingUrl.length > 0 && importedUrl === existingUrl;
+                const hasNamePlatformMatch = importedName === existingName && importedPlatform === existingPlatform;
+
+                return hasUrlMatch || hasNamePlatformMatch;
+            });
+
+            if (existingMatch) {
+                conflicts.push({ existing: existingMatch, imported });
+            } else {
+                stagedNonConflicting.push({ action: 'insert', problem: imported });
+            }
+        });
+
+        if (conflicts.length === 0) {
+            // All records non-conflicting, automatically persist
+            this.executeBatchImport(stagedNonConflicting);
+        } else {
+            // Present Windows-Style Conflict Resolution Modal
+            this.openConflictResolutionModal(stagedNonConflicting, conflicts);
+        }
+    }
+
+    /* ─── Windows-Style Conflict Resolution Controller ─────────── */
+
+    bindConflictModalEvents() {
+        const btnKeepExisting = document.getElementById('btn-keep-existing');
+        const btnReplaceImported = document.getElementById('btn-replace-imported');
+        const btnKeepBoth = document.getElementById('btn-keep-both');
+
+        const btnSkipAll = document.getElementById('btn-skip-all');
+        const btnReplaceAll = document.getElementById('btn-replace-all');
+        const btnKeepAll = document.getElementById('btn-keep-all');
+
+        if (btnKeepExisting) btnKeepExisting.addEventListener('click', () => this.resolveConflict('skip'));
+        if (btnReplaceImported) btnReplaceImported.addEventListener('click', () => this.resolveConflict('update'));
+        if (btnKeepBoth) btnKeepBoth.addEventListener('click', () => this.resolveConflict('insert'));
+
+        if (btnSkipAll) btnSkipAll.addEventListener('click', () => this.batchResolveAll('skip'));
+        if (btnReplaceAll) btnReplaceAll.addEventListener('click', () => this.batchResolveAll('update'));
+        if (btnKeepAll) btnKeepAll.addEventListener('click', () => this.batchResolveAll('insert'));
+    }
+
+    openConflictResolutionModal(staged, conflicts) {
+        this.conflictState = {
+            staged: staged,
+            conflicts: conflicts,
+            index: 0,
+            resolutions: []
+        };
+
+        const applyAllChk = document.getElementById('conflict-apply-all');
+        if (applyAllChk) applyAllChk.checked = false;
+
+        const modal = document.getElementById('conflict-modal');
+        if (modal) modal.classList.remove('hidden');
+
+        this.renderCurrentConflict();
+    }
+
+    renderCurrentConflict() {
+        const { conflicts, index } = this.conflictState;
+
+        if (index >= conflicts.length) {
+            this.finalizeConflictResolution();
+            return;
+        }
+
+        const counterEl = document.getElementById('conflict-counter');
+        const summaryTextEl = document.getElementById('conflict-summary-text');
+        const existingDetailsEl = document.getElementById('conflict-existing-details');
+        const importedDetailsEl = document.getElementById('conflict-imported-details');
+
+        if (counterEl) {
+            counterEl.textContent = `Conflict ${index + 1} of ${conflicts.length}`;
+        }
+        if (summaryTextEl) {
+            summaryTextEl.textContent = `Found ${conflicts.length} duplicate problem entry${conflicts.length > 1 ? 'ies' : ''}. Choose which version to keep.`;
+        }
+
+        const pair = conflicts[index];
+        const existing = pair.existing;
+        const imported = pair.imported;
+
+        if (existingDetailsEl) {
+            existingDetailsEl.innerHTML = this.buildConflictCardHtml(existing, imported);
+        }
+        if (importedDetailsEl) {
+            importedDetailsEl.innerHTML = this.buildConflictCardHtml(imported, existing);
+        }
+    }
+
+    buildConflictCardHtml(record, otherRecord) {
+        const fields = [
+            { label: 'Date Logged', key: 'date', val: record.date },
+            { label: 'Problem Name', key: 'name', val: record.name },
+            { label: 'Platform', key: 'platform', val: record.platform },
+            { label: 'Difficulty', key: 'difficulty', val: record.difficulty },
+            { label: 'Topic', key: 'topic', val: record.topic },
+            { label: 'URL', key: 'url', val: record.url || 'None' },
+            { label: 'Time Spent', key: 'timeSpent', val: record.timeSpent || '0s' },
+            { label: 'Hint Used', key: 'hintUsed', val: record.hintUsed ? 'Yes 💡' : 'No' },
+            { label: 'Solo Solved', key: 'independent', val: record.independent ? 'Yes' : 'No (Help)' },
+            { label: 'Needs Revision', key: 'needsRevision', val: record.needsRevision ? 'Yes 🔄' : 'No' },
+            { label: 'Notes', key: 'notes', val: record.notes ? record.notes : 'None' }
+        ];
+
+        return fields.map(f => {
+            let otherVal = otherRecord[f.key];
+            if (f.key === 'hintUsed') otherVal = otherRecord.hintUsed ? 'Yes 💡' : 'No';
+            if (f.key === 'independent') otherVal = otherRecord.independent ? 'Yes' : 'No (Help)';
+            if (f.key === 'needsRevision') otherVal = otherRecord.needsRevision ? 'Yes 🔄' : 'No';
+            if (f.key === 'url') otherVal = otherRecord.url || 'None';
+            if (f.key === 'notes') otherVal = otherRecord.notes ? otherRecord.notes : 'None';
+            if (f.key === 'timeSpent') otherVal = otherRecord.timeSpent || '0s';
+
+            const isDiff = String(f.val).trim().toLowerCase() !== String(otherVal).trim().toLowerCase();
+            const diffClass = isDiff ? 'is-diff' : '';
+            const diffBadge = isDiff ? '<span class="conflict-diff-badge">Differs</span>' : '';
+
+            return `
+                <div class="conflict-field-row ${diffClass}">
+                    <div class="conflict-field-label">
+                        <span>${f.label}</span>
+                        ${diffBadge}
+                    </div>
+                    <div class="conflict-field-val">${this.escapeHtml(String(f.val))}</div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    resolveConflict(action) {
+        if (!this.conflictState) return;
+
+        const applyAll = document.getElementById('conflict-apply-all')?.checked;
+        const { conflicts, index } = this.conflictState;
+
+        if (applyAll) {
+            this.batchResolveAll(action);
+            return;
+        }
+
+        const pair = conflicts[index];
+        this.addResolution(action, pair);
+
+        this.conflictState.index++;
+        if (this.conflictState.index < conflicts.length) {
+            this.renderCurrentConflict();
+        } else {
+            this.finalizeConflictResolution();
+        }
+    }
+
+    batchResolveAll(action) {
+        if (!this.conflictState) return;
+        const { conflicts, index } = this.conflictState;
+
+        for (let i = index; i < conflicts.length; i++) {
+            this.addResolution(action, conflicts[i]);
+        }
+
+        this.conflictState.index = conflicts.length;
+        this.finalizeConflictResolution();
+    }
+
+    addResolution(action, pair) {
+        if (action === 'skip') {
+            // Keep Existing -> Skip CSV row
+            this.conflictState.resolutions.push({
+                action: 'skip',
+                problem: pair.imported
+            });
+        } else if (action === 'update') {
+            // Replace with Imported -> Overwrite existing DB record using existing.id
+            this.conflictState.resolutions.push({
+                action: 'update',
+                problem: {
+                    ...pair.imported,
+                    id: pair.existing.id
+                }
+            });
+        } else if (action === 'insert') {
+            // Keep Both -> Import CSV row as a new entry with a fresh ID
+            this.conflictState.resolutions.push({
+                action: 'insert',
+                problem: {
+                    ...pair.imported,
+                    id: 'imp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6)
+                }
+            });
+        }
+    }
+
+    finalizeConflictResolution() {
+        const modal = document.getElementById('conflict-modal');
+        if (modal) modal.classList.add('hidden');
+
+        if (!this.conflictState) return;
+        const allItems = [...this.conflictState.staged, ...this.conflictState.resolutions];
+        this.conflictState = null;
+
+        this.executeBatchImport(allItems);
+    }
+
+    async executeBatchImport(allItems) {
+        if (!allItems || allItems.length === 0) {
+            Toast.show('No problem records to import.', 'info');
+            return;
+        }
+
+        try {
+            const response = await fetch('http://localhost:3000/api/problems/import', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ items: allItems })
+            });
+
+            if (!response.ok) throw new Error('Server returned HTTP ' + response.status);
+
+            const result = await response.json();
+            const { inserted = 0, updated = 0, skipped = 0 } = result;
+
+            Toast.show(`Import complete: ${inserted} inserted, ${updated} updated, ${skipped} skipped ✓`, 'success');
+            await this.loadProblems();
+        } catch (err) {
+            console.warn('Batch import server request failed, updating local state:', err);
+
+            let inserted = 0;
+            let updated = 0;
+            let skipped = 0;
+
+            allItems.forEach(item => {
+                if (item.action === 'skip') {
+                    skipped++;
+                } else if (item.action === 'update') {
+                    const idx = this.problems.findIndex(p => p.id === item.problem.id);
+                    if (idx !== -1) {
+                        this.problems[idx] = item.problem;
+                    } else {
+                        this.problems.unshift(item.problem);
+                    }
+                    updated++;
+                } else {
+                    this.problems.unshift(item.problem);
+                    inserted++;
+                }
+            });
+
+            Storage.set('dsa_problems', this.problems);
+            this.renderSpreadsheet();
+            this.updateStats();
+
+            Toast.show(`Import applied locally: ${inserted} inserted, ${updated} updated, ${skipped} skipped`, 'info');
+        }
+    }
+
+    /* ─── Helpers ────────────────────────────────────────────── */
+
+    parseSecondsFromFormatted(str) {
+        if (!str) return 0;
+        const s = String(str).trim();
+        if (!isNaN(s) && s !== '') return parseInt(s);
+
+        let total = 0;
+        const hoursMatch = s.match(/(\d+)\s*h/i);
+        const minsMatch = s.match(/(\d+)\s*m/i);
+        const secsMatch = s.match(/(\d+)\s*s/i);
+
+        if (hoursMatch) total += parseInt(hoursMatch[1]) * 3600;
+        if (minsMatch) total += parseInt(minsMatch[1]) * 60;
+        if (secsMatch) total += parseInt(secsMatch[1]);
+
+        return total;
+    }
+
+    capitalize(str) {
+        if (!str) return '';
+        return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+    }
+
+    escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
     }
 
     updateStats() {
@@ -1531,6 +2097,9 @@ class App {
                 progText.textContent = `${todayCount}/${this.dailyGoal}`;
             }
         }
+
+        // Update Pace & Completion Projection Meter
+        this.updatePaceAndProjection();
     }
 
     animateStat(elementId, targetValue) {
@@ -1555,79 +2124,508 @@ class App {
         }
         requestAnimationFrame(step);
     }
+
+    /* ─── Pace & Completion Projection Controller ─────────────── */
+
+    bindPaceEvents() {
+        const btn7d = document.getElementById('btn-pace-7d');
+        const btn14d = document.getElementById('btn-pace-14d');
+        const chkWeighted = document.getElementById('chk-pace-weighted');
+        const btnEditTarget = document.getElementById('btn-edit-target-total');
+        const btnEditSolved = document.getElementById('btn-edit-solved-count');
+
+        if (btn7d) {
+            btn7d.addEventListener('click', () => {
+                this.paceWindowDays = 7;
+                btn7d.classList.add('active');
+                if (btn14d) btn14d.classList.remove('active');
+                this.savePaceSetting('pace_window_days', 7);
+                this.updatePaceAndProjection();
+            });
+        }
+
+        if (btn14d) {
+            btn14d.addEventListener('click', () => {
+                this.paceWindowDays = 14;
+                btn14d.classList.add('active');
+                if (btn7d) btn7d.classList.remove('active');
+                this.savePaceSetting('pace_window_days', 14);
+                this.updatePaceAndProjection();
+            });
+        }
+
+        if (chkWeighted) {
+            chkWeighted.addEventListener('change', (e) => {
+                this.paceWeightedMode = e.target.checked;
+                this.savePaceSetting('pace_weighted_mode', this.paceWeightedMode ? 'true' : 'false');
+                this.updatePaceAndProjection();
+            });
+        }
+
+        if (btnEditSolved) {
+            btnEditSolved.addEventListener('click', () => {
+                const solvedDisplay = document.getElementById('pace-solved-display');
+                if (!solvedDisplay || solvedDisplay.querySelector('input')) return;
+
+                const dbLogged = this.problems.length;
+                const currentTotalSolved = Math.max(0, dbLogged + (this.externalSolvedOffset || 0));
+
+                const input = document.createElement('input');
+                input.type = 'number';
+                input.className = 'input-daily-goal';
+                input.style.width = '64px';
+                input.style.height = '20px';
+                input.style.fontSize = '0.8rem';
+                input.value = currentTotalSolved;
+                input.min = 0;
+                input.max = 5000;
+
+                solvedDisplay.innerHTML = '';
+                solvedDisplay.appendChild(input);
+                btnEditSolved.style.display = 'none';
+
+                input.focus();
+                input.select();
+
+                let hasSaved = false;
+                const saveAndRevert = (shouldSave = true) => {
+                    if (hasSaved) return;
+                    hasSaved = true;
+
+                    const val = parseInt(input.value);
+                    if (shouldSave && !isNaN(val) && val >= 0) {
+                        this.externalSolvedOffset = val - dbLogged;
+                        this.savePaceSetting('external_solved_offset', String(this.externalSolvedOffset));
+                        Toast.show(`Actual solved count set to ${val} problems!`, 'success');
+                    }
+
+                    const totalSolvedNow = Math.max(0, dbLogged + (this.externalSolvedOffset || 0));
+                    solvedDisplay.innerHTML = `<strong id="pace-solved-count">${totalSolvedNow}</strong>`;
+                    btnEditSolved.style.display = 'inline-block';
+                    this.updatePaceAndProjection();
+                };
+
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') saveAndRevert(true);
+                    else if (e.key === 'Escape') saveAndRevert(false);
+                });
+
+                input.addEventListener('blur', () => saveAndRevert(true));
+            });
+        }
+
+        if (btnEditTarget) {
+            btnEditTarget.addEventListener('click', () => {
+                const targetDisplay = document.getElementById('pace-target-display');
+                if (!targetDisplay || targetDisplay.querySelector('input')) return;
+
+                const currentVal = this.targetTotalProblems;
+                const input = document.createElement('input');
+                input.type = 'number';
+                input.className = 'input-daily-goal';
+                input.style.width = '64px';
+                input.style.height = '20px';
+                input.style.fontSize = '0.8rem';
+                input.value = currentVal;
+                input.min = 1;
+                input.max = 5000;
+
+                targetDisplay.innerHTML = '';
+                targetDisplay.appendChild(input);
+                btnEditTarget.style.display = 'none';
+
+                input.focus();
+                input.select();
+
+                let hasSaved = false;
+                const saveAndRevert = (shouldSave = true) => {
+                    if (hasSaved) return;
+                    hasSaved = true;
+
+                    const val = parseInt(input.value);
+                    if (shouldSave && !isNaN(val) && val > 0) {
+                        this.targetTotalProblems = val;
+                        this.savePaceSetting('target_total_problems', String(val));
+                        Toast.show(`Sheet target updated to ${val} problems!`, 'success');
+                    }
+
+                    targetDisplay.innerHTML = `<strong id="pace-target-count">${this.targetTotalProblems}</strong>`;
+                    btnEditTarget.style.display = 'inline-block';
+                    this.updatePaceAndProjection();
+                };
+
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') saveAndRevert(true);
+                    else if (e.key === 'Escape') saveAndRevert(false);
+                });
+
+                input.addEventListener('blur', () => saveAndRevert(true));
+            });
+        }
+    }
+
+    async loadPaceSettings() {
+        try {
+            const [resTarget, resWindow, resWeighted, resOffset] = await Promise.all([
+                fetch('http://localhost:3000/api/kv/target_total_problems').catch(() => null),
+                fetch('http://localhost:3000/api/kv/pace_window_days').catch(() => null),
+                fetch('http://localhost:3000/api/kv/pace_weighted_mode').catch(() => null),
+                fetch('http://localhost:3000/api/kv/external_solved_offset').catch(() => null)
+            ]);
+
+            if (resTarget && resTarget.ok) {
+                const data = await resTarget.json();
+                if (data && data.value) this.targetTotalProblems = parseInt(data.value) || 474;
+            } else {
+                this.targetTotalProblems = parseInt(localStorage.getItem('dsa_target_total_problems')) || 474;
+            }
+
+            if (resWindow && resWindow.ok) {
+                const data = await resWindow.json();
+                if (data && data.value) this.paceWindowDays = parseInt(data.value) || 7;
+            } else {
+                this.paceWindowDays = parseInt(localStorage.getItem('dsa_pace_window_days')) || 7;
+            }
+
+            if (resWeighted && resWeighted.ok) {
+                const data = await resWeighted.json();
+                if (data && data.value) this.paceWeightedMode = data.value === 'true';
+            } else {
+                this.paceWeightedMode = localStorage.getItem('dsa_pace_weighted_mode') === 'true';
+            }
+
+            if (resOffset && resOffset.ok) {
+                const data = await resOffset.json();
+                if (data && data.value) this.externalSolvedOffset = parseInt(data.value) || 0;
+            } else {
+                this.externalSolvedOffset = parseInt(localStorage.getItem('dsa_external_solved_offset')) || 0;
+            }
+        } catch (e) {
+            console.warn('Failed loading pace settings from backend, using fallbacks:', e);
+            this.targetTotalProblems = parseInt(localStorage.getItem('dsa_target_total_problems')) || 474;
+            this.paceWindowDays = parseInt(localStorage.getItem('dsa_pace_window_days')) || 7;
+            this.paceWeightedMode = localStorage.getItem('dsa_pace_weighted_mode') === 'true';
+            this.externalSolvedOffset = parseInt(localStorage.getItem('dsa_external_solved_offset')) || 0;
+        }
+
+        // Apply loaded settings to UI controls
+        const btn7d = document.getElementById('btn-pace-7d');
+        const btn14d = document.getElementById('btn-pace-14d');
+        const chkWeighted = document.getElementById('chk-pace-weighted');
+
+        if (this.paceWindowDays === 14) {
+            if (btn14d) btn14d.classList.add('active');
+            if (btn7d) btn7d.classList.remove('active');
+        } else {
+            if (btn7d) btn7d.classList.add('active');
+            if (btn14d) btn14d.classList.remove('active');
+        }
+
+        if (chkWeighted) chkWeighted.checked = this.paceWeightedMode;
+
+        this.updatePaceAndProjection();
+    }
+
+    savePaceSetting(key, val) {
+        localStorage.setItem(`dsa_${key}`, String(val));
+        fetch(`http://localhost:3000/api/kv/${key}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ value: String(val) })
+        }).catch(() => {});
+    }
+
+    updatePaceAndProjection() {
+        const solvedCountEl = document.getElementById('pace-solved-count');
+        const targetCountEl = document.getElementById('pace-target-count');
+        const percentEl = document.getElementById('pace-percent');
+        const remainingBadgeEl = document.getElementById('pace-remaining-badge');
+        const progressFillEl = document.getElementById('pace-progress-fill');
+
+        const velocityValEl = document.getElementById('pace-velocity-val');
+        const velocityLabelEl = document.getElementById('pace-velocity-label');
+
+        const timeValEl = document.getElementById('pace-time-val');
+        const timeLabelEl = document.getElementById('pace-time-label');
+
+        const dateValEl = document.getElementById('pace-date-val');
+        const dateLabelEl = document.getElementById('pace-date-label');
+
+        if (!solvedCountEl) return;
+
+        const dbLogged = this.problems.length;
+        const totalSolved = Math.max(0, dbLogged + (this.externalSolvedOffset || 0));
+        const targetTotal = this.targetTotalProblems || 474;
+        const remaining = Math.max(0, targetTotal - totalSolved);
+        const percent = Math.min(100, (totalSolved / Math.max(1, targetTotal)) * 100);
+
+        if (solvedCountEl) solvedCountEl.textContent = totalSolved;
+        if (targetCountEl) targetCountEl.textContent = targetTotal;
+        if (percentEl) percentEl.textContent = `${percent.toFixed(1)}%`;
+        if (remainingBadgeEl) remainingBadgeEl.textContent = `${remaining} remaining`;
+        if (progressFillEl) progressFillEl.style.width = `${percent}%`;
+
+        // Rolling Velocity Calculation
+        const windowDays = this.paceWindowDays || 7;
+        const isWeighted = this.paceWeightedMode || false;
+
+        const now = new Date();
+        now.setHours(23, 59, 59, 999);
+
+        const windowStart = new Date(now);
+        windowStart.setDate(windowStart.getDate() - windowDays);
+        windowStart.setHours(0, 0, 0, 0);
+
+        let countInWindow = 0;
+        let weightedPointsInWindow = 0;
+
+        let totalWeightedPointsAllTime = 0;
+
+        this.problems.forEach(p => {
+            const diff = (p.difficulty || 'Medium').toLowerCase();
+            let weight = 1.5;
+            if (diff === 'easy') weight = 1.0;
+            else if (diff === 'hard') weight = 2.5;
+
+            totalWeightedPointsAllTime += weight;
+
+            if (p.date) {
+                const pDate = new Date(p.date + 'T00:00:00');
+                if (pDate >= windowStart && pDate <= now) {
+                    countInWindow++;
+                    weightedPointsInWindow += weight;
+                }
+            }
+        });
+
+        const dailyVelocity = countInWindow / windowDays;
+        const weeklyVelocity = dailyVelocity * 7;
+
+        const dailyWeightedVelocity = weightedPointsInWindow / windowDays;
+        const weeklyWeightedVelocity = dailyWeightedVelocity * 7;
+
+        // Display Velocity
+        if (velocityValEl) {
+            if (isWeighted) {
+                velocityValEl.textContent = `⚡ ${weeklyWeightedVelocity.toFixed(1)} pts/wk`;
+            } else {
+                velocityValEl.textContent = `⚡ ${weeklyVelocity.toFixed(1)} / wk`;
+            }
+        }
+        if (velocityLabelEl) {
+            const perDayStr = isWeighted ? `${dailyWeightedVelocity.toFixed(1)} pts/day` : `${dailyVelocity.toFixed(1)} / day`;
+            velocityLabelEl.textContent = `${perDayStr} (${windowDays}d window${isWeighted ? ', Weighted' : ''})`;
+        }
+
+        // Time Remaining & Projected Completion Date
+        let daysRemaining = 0;
+        let weeksRemaining = 0;
+        let dateStr = 'N/A';
+        let dateLabel = 'Est. Completion Date';
+        let timeSubText = '0 days remaining';
+
+        if (totalSolved >= targetTotal) {
+            if (timeValEl) timeValEl.textContent = '🎉 Goal Met!';
+            if (timeLabelEl) timeLabelEl.textContent = '0 days remaining';
+            if (dateValEl) dateValEl.textContent = 'Completed!';
+            if (dateLabelEl) dateLabelEl.textContent = 'All target problems solved';
+            return;
+        }
+
+        if (!isWeighted) {
+            if (dailyVelocity > 0) {
+                daysRemaining = remaining / dailyVelocity;
+                weeksRemaining = daysRemaining / 7;
+
+                const estDate = new Date();
+                estDate.setDate(estDate.getDate() + Math.round(daysRemaining));
+
+                dateStr = estDate.toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric'
+                });
+                timeSubText = `${Math.round(daysRemaining)} days remaining`;
+            } else {
+                dateStr = 'Solve to estimate';
+                timeSubText = 'No recent activity';
+            }
+        } else {
+            // Weighted mode: remaining weighted points
+            const avgWeightAllTime = dbLogged > 0 ? (totalWeightedPointsAllTime / dbLogged) : 1.6;
+            const remainingWeightedPoints = remaining * avgWeightAllTime;
+
+            if (dailyWeightedVelocity > 0) {
+                daysRemaining = remainingWeightedPoints / dailyWeightedVelocity;
+                weeksRemaining = daysRemaining / 7;
+
+                const estDate = new Date();
+                estDate.setDate(estDate.getDate() + Math.round(daysRemaining));
+
+                dateStr = estDate.toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric'
+                });
+                timeSubText = `${Math.round(daysRemaining)} days (Weighted effort)`;
+            } else {
+                dateStr = 'Solve to estimate';
+                timeSubText = 'No recent activity';
+            }
+        }
+
+        if (timeValEl) {
+            timeValEl.textContent = daysRemaining > 0 ? `⌛ ~${weeksRemaining.toFixed(1)} wks` : '⌛ N/A';
+        }
+        if (timeLabelEl) timeLabelEl.textContent = timeSubText;
+
+        if (dateValEl) dateValEl.textContent = `📅 ${dateStr}`;
+        if (dateLabelEl) dateLabelEl.textContent = dateLabel;
+    }
 }
 
-
-
+/* ─── Journal Manager Class ──────────────────────────────── */
 class JournalManager {
-constructor(app) {
-this.app = app;
-this.journals = [];
-this.currentYear = new Date().getFullYear();
-this.currentMonth = new Date().getMonth();
-this.draftTimer = null;
+    constructor(app) {
+        this.app = app;
+        this.journals = [];
+        this.currentYear = new Date().getFullYear();
+        this.currentMonth = new Date().getMonth();
+        this.draftTimer = null;
 
-this.initElements();
-this.bindEvents();
-this.loadJournals();
-}
+        this.initElements();
+        this.bindEvents();
+        this.loadJournals();
+    }
 
-initElements() {
-this.viewJournal = document.getElementById('journal-view');
-this.btnOpenModal = document.getElementById('btn-open-journal-modal');
-this.calendarGrid = document.getElementById('calendar-grid');
-this.calendarMonthYear = document.getElementById('calendar-month-year');
-this.btnPrevMonth = document.getElementById('btn-prev-month');
-this.btnNextMonth = document.getElementById('btn-next-month');
-this.btnToday = document.getElementById('btn-calendar-today');
+    initElements() {
+        this.viewJournal = document.getElementById('journal-view');
+        this.btnOpenModal = document.getElementById('btn-open-journal-modal');
+        this.calendarGrid = document.getElementById('calendar-grid');
+        this.calendarMonthYear = document.getElementById('calendar-month-year');
+        this.btnPrevMonth = document.getElementById('btn-prev-month');
+        this.btnNextMonth = document.getElementById('btn-next-month');
+        this.btnToday = document.getElementById('btn-calendar-today');
+        
+        this.entriesList = document.getElementById('journal-entries-list');
+        this.entriesCount = document.getElementById('journal-entries-count');
+        this.emptyState = document.getElementById('journal-empty');
 
-this.entriesList = document.getElementById('journal-entries-list');
-this.entriesCount = document.getElementById('journal-entries-count');
-this.emptyState = document.getElementById('journal-empty');
+        // Modal elements
+        this.modal = document.getElementById('journal-modal');
+        this.btnCloseModal = document.getElementById('btn-close-journal-modal');
+        this.btnCancel = document.getElementById('btn-cancel-journal');
+        this.btnDelete = document.getElementById('btn-delete-journal');
+        this.form = document.getElementById('journal-form');
+        this.inputId = document.getElementById('journal-entry-id');
+        this.inputDate = document.getElementById('journal-entry-date');
+        this.inputTitle = document.getElementById('journal-title');
+        this.inputContent = document.getElementById('journal-content');
+        this.modalDateDisplay = document.getElementById('journal-modal-date');
+        this.modalTitleDisplay = document.getElementById('journal-modal-title');
+        this.wordCountBadge = document.getElementById('scratchpad-word-count');
+        this.draftIndicator = document.getElementById('scratchpad-draft-indicator');
 
-// Modal elements
-this.modal = document.getElementById('journal-modal');
-this.btnCloseModal = document.getElementById('btn-close-journal-modal');
-this.btnCancel = document.getElementById('btn-cancel-journal');
-this.btnDelete = document.getElementById('btn-delete-journal');
-this.form = document.getElementById('journal-form');
-this.inputId = document.getElementById('journal-entry-id');
-this.inputDate = document.getElementById('journal-entry-date');
-this.inputTitle = document.getElementById('journal-title');
-this.inputContent = document.getElementById('journal-content');
-this.modalDateDisplay = document.getElementById('journal-modal-date');
-this.modalTitleDisplay = document.getElementById('journal-modal-title');
-this.wordCountBadge = document.getElementById('scratchpad-word-count');
-this.draftIndicator = document.getElementById('scratchpad-draft-indicator');
-}
+        // View toggle elements
+        this.btnViewGrid = document.getElementById('btn-view-grid');
+        this.btnViewDeck = document.getElementById('btn-view-deck');
+        this.gridWrapper = document.getElementById('journal-grid-wrapper');
+        this.deckContainer = document.getElementById('journal-deck-container');
+
+        // Deck elements
+        this.deckTrack = document.getElementById('deck-cards-track');
+        this.deckViewport = document.getElementById('deck-cards-viewport');
+        this.btnDeckPrev = document.getElementById('btn-deck-prev');
+        this.btnDeckNext = document.getElementById('btn-deck-next');
+        this.deckCounterBadge = document.getElementById('deck-counter-badge');
+        this.deckPaginationBar = document.getElementById('deck-pagination-bar');
+        this.deckFilterAll = document.getElementById('deck-filter-all');
+        this.deckFilterEntries = document.getElementById('deck-filter-entries');
+
+        // Deck state
+        this.activeView = 'grid';
+        this.deckCards = [];
+        this.deckIndex = 0;
+        this.deckFilter = 'all';
+
+        // Continuous Physics Scroll & 3D Tilt State
+        this.deckScrollTarget = 0;
+        this.deckScrollCurrent = 0;
+        this.deckTiltTargetX = 0;
+        this.deckTiltTargetY = 0;
+        this.deckTiltCurrentX = 0;
+        this.deckTiltCurrentY = 0;
+        this.isDraggingDeck = false;
+        this.dragStartY = 0;
+        this.dragStartScrollTarget = 0;
+    }
 
     bindEvents() {
-        // Document-level click handler for opening modal reliably
+        // Document-level click delegate for opening journal modal reliably from any location
         document.addEventListener('click', (e) => {
-            const btn = e.target.closest('#btn-open-journal-modal') || e.target.closest('.journal-new-btn') || e.target.closest('[data-action="open-journal"]');
+            const btn = e.target.closest('#btn-open-journal-modal') || 
+                        e.target.closest('.journal-new-btn') || 
+                        e.target.closest('[data-action="open-journal"]');
             if (btn) {
                 e.preventDefault();
                 e.stopPropagation();
-                const todayStr = this.getTodayDateStr();
-                this.openModalForDate(todayStr);
+                if (this.app && typeof this.app.switchTab === 'function') {
+                    this.app.switchTab('journal');
+                }
+                const dateFromBtn = btn.getAttribute('data-date');
+                const targetDate = dateFromBtn || this.getTodayDateStr();
+                this.openModalForDate(targetDate);
             }
         });
 
         if (this.btnCloseModal) {
-            this.btnCloseModal.addEventListener('click', () => this.closeModal());
+            this.btnCloseModal.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.closeModal();
+            });
         }
 
         if (this.btnCancel) {
-            this.btnCancel.addEventListener('click', () => this.closeModal());
+            this.btnCancel.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.closeModal();
+            });
         }
 
+        // Backdrop click to close journal modal when clicking outside card
+        if (this.modal) {
+            this.modal.addEventListener('click', (e) => {
+                if (e.target === this.modal) {
+                    this.closeModal();
+                }
+            });
+        }
+
+        // Global backdrop click fallback
         document.addEventListener('click', (e) => {
             if (this.modal && e.target === this.modal) {
                 this.closeModal();
             }
         });
 
-        // Calendar Month Navigation
+        // Click empty state text to quickly write entry
+        if (this.emptyState) {
+            this.emptyState.addEventListener('click', () => {
+                const todayStr = this.getTodayDateStr();
+                this.openModalForDate(todayStr);
+            });
+            this.emptyState.style.cursor = 'pointer';
+        }
+
+        // Escape key to close journal modal
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && this.modal && !this.modal.classList.contains('hidden')) {
+                this.closeModal();
+            }
+        });
+
         if (this.btnPrevMonth) {
             this.btnPrevMonth.addEventListener('click', () => {
                 this.currentMonth--;
@@ -1636,6 +2634,7 @@ this.draftIndicator = document.getElementById('scratchpad-draft-indicator');
                     this.currentYear--;
                 }
                 this.renderCalendar();
+                this.renderDeckView();
             });
         }
 
@@ -1647,141 +2646,917 @@ this.draftIndicator = document.getElementById('scratchpad-draft-indicator');
                     this.currentYear++;
                 }
                 this.renderCalendar();
+                this.renderDeckView();
             });
         }
 
         if (this.btnToday) {
             this.btnToday.addEventListener('click', () => {
-                const now = new Date();
-                this.currentYear = now.getFullYear();
-                this.currentMonth = now.getMonth();
-                this.renderCalendar();
-                this.renderDeckView();
+                this.goToToday();
             });
         }
 
-        // View Mode Toggle (Grid vs Deck)
-        if (this.btnViewGrid) {
-            this.btnViewGrid.addEventListener('click', () => this.switchViewMode('grid'));
-        }
-        if (this.btnViewDeck) {
-            this.btnViewDeck.addEventListener('click', () => this.switchViewMode('deck'));
+        if (this.inputContent) {
+            this.inputContent.addEventListener('input', () => {
+                this.updateWordCount();
+                this.triggerDraftAutoSave();
+            });
         }
 
-        // Deck Filters (All Days vs Entries Only)
+        if (this.inputTitle) {
+            this.inputTitle.addEventListener('input', () => {
+                this.triggerDraftAutoSave();
+            });
+        }
+
+        if (this.form) {
+            this.form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.saveEntry();
+            });
+        }
+
+        if (this.btnDelete) {
+            this.btnDelete.addEventListener('click', () => {
+                const id = this.inputId ? this.inputId.value : null;
+                if (id) this.deleteEntry(id);
+            });
+        }
+
+        // ─── View Toggle: Grid ↔ Card Deck ───
+        if (this.btnViewGrid) {
+            this.btnViewGrid.addEventListener('click', () => {
+                this.switchView('grid');
+            });
+        }
+
+        if (this.btnViewDeck) {
+            this.btnViewDeck.addEventListener('click', () => {
+                this.switchView('deck');
+            });
+        }
+
+        // ─── Deck Navigation Arrows ───
+        if (this.btnDeckPrev) {
+            this.btnDeckPrev.addEventListener('click', () => {
+                this.navigateDeck(-1);
+            });
+        }
+
+        if (this.btnDeckNext) {
+            this.btnDeckNext.addEventListener('click', () => {
+                this.navigateDeck(1);
+            });
+        }
+
+        // ─── Deck Filter Pills ───
         if (this.deckFilterAll) {
             this.deckFilterAll.addEventListener('click', () => {
-                this.deckFilterMode = 'all';
-                this.deckFilterAll.classList.add('active');
+                this.deckFilter = 'all';
+                if (this.deckFilterAll) this.deckFilterAll.classList.add('active');
                 if (this.deckFilterEntries) this.deckFilterEntries.classList.remove('active');
                 this.renderDeckView();
             });
         }
+
         if (this.deckFilterEntries) {
             this.deckFilterEntries.addEventListener('click', () => {
-                this.deckFilterMode = 'entries';
-                this.deckFilterEntries.classList.add('active');
+                this.deckFilter = 'entries';
+                if (this.deckFilterEntries) this.deckFilterEntries.classList.add('active');
                 if (this.deckFilterAll) this.deckFilterAll.classList.remove('active');
                 this.renderDeckView();
             });
         }
 
-        // Deck Arrows
-        if (this.btnDeckPrev) {
-            this.btnDeckPrev.addEventListener('click', () => this.navigateDeck(-1));
-        }
-        if (this.btnDeckNext) {
-            this.btnDeckNext.addEventListener('click', () => this.navigateDeck(1));
+        // ─── Deck Ambient Glow & Drag State Initialization ───
+        this.deckAmbientGlow = document.getElementById('deck-ambient-glow');
+
+        // ─── Deck Pointer Drag / Wheel / Mouse Tilt Navigation ───
+        if (this.deckViewport) {
+            // Pointer Down for Drag Physics (Horizontal Drag)
+            this.deckViewport.addEventListener('pointerdown', (e) => {
+                if (this.activeView !== 'deck' || !this.deckCards || this.deckCards.length === 0) return;
+                
+                this.isPointerDownOnDeck = true;
+                this._dragPointerDownCard = e.target.closest('.journal-deck-card');
+                this._dragPointerDownTime = Date.now();
+                this.dragStartX = e.clientX;
+                this.dragStartY = e.clientY;
+                this.dragStartScrollTarget = this.deckScrollTarget;
+                this.isDraggingDeck = false;
+            });
+
+            // Pointer Move for Continuous Drag & Realtime 3D Mouse Tilt
+            this.deckViewport.addEventListener('pointermove', (e) => {
+                if (this.activeView !== 'deck') return;
+
+                // Subtle & Refined 3D Cursor Tilt relative to Viewport Center
+                const rect = this.deckViewport.getBoundingClientRect();
+                const relX = (e.clientX - (rect.left + rect.width / 2)) / (rect.width / 2);
+                const relY = (e.clientY - (rect.top + rect.height / 2)) / (rect.height / 2);
+
+                this.deckTiltTargetX = -relY * 8; // Gentle, subtle 3D tilt X
+                this.deckTiltTargetY = relX * 8;  // Gentle, subtle 3D tilt Y
+
+                if (this.isPointerDownOnDeck) {
+                    const deltaX = e.clientX - this.dragStartX;
+                    const deltaY = e.clientY - this.dragStartY;
+                    const dist = Math.hypot(deltaX, deltaY);
+
+                    // Defer pointer capture until real drag movement (> 8px)
+                    if (dist > 8 && !this.isDraggingDeck) {
+                        this.isDraggingDeck = true;
+                        this.deckViewport.classList.add('is-dragging');
+                        try {
+                            this.deckViewport.setPointerCapture(e.pointerId);
+                        } catch (err) {}
+                    }
+
+                    if (this.isDraggingDeck) {
+                        this.deckScrollTarget = Math.max(0, Math.min(this.deckCards.length - 1, this.dragStartScrollTarget - (deltaX / 135)));
+                    }
+                }
+            });
+
+            const handlePointerRelease = (e) => {
+                if (!this.isPointerDownOnDeck) return;
+                this.isPointerDownOnDeck = false;
+
+                const deltaX = Math.abs(e.clientX - (this.dragStartX || e.clientX));
+                const deltaY = Math.abs(e.clientY - (this.dragStartY || e.clientY));
+                const dist = Math.hypot(deltaX, deltaY);
+                const pressDuration = Date.now() - (this._dragPointerDownTime || 0);
+
+                if (this.isDraggingDeck) {
+                    this.isDraggingDeck = false;
+                    this.deckViewport.classList.remove('is-dragging');
+                    try {
+                        if (this.deckViewport.hasPointerCapture(e.pointerId)) {
+                            this.deckViewport.releasePointerCapture(e.pointerId);
+                        }
+                    } catch (err) {}
+                }
+
+                this.deckScrollTarget = Math.round(this.deckScrollTarget);
+                this.deckIndex = this.deckScrollTarget;
+                this._deckUserNavigated = true;
+                this.updateDeckCounterAndPagination();
+
+                if (dist <= 8 && pressDuration < 800) {
+                    // Tap / click gesture - trigger modal popup for target card
+                    const targetCard = this._dragPointerDownCard || 
+                                       (e.target && typeof e.target.closest === 'function' ? e.target.closest('.journal-deck-card') : null);
+                    if (targetCard) {
+                        const dateStr = targetCard.getAttribute('data-date');
+                        const idx = parseInt(targetCard.getAttribute('data-deck-index'), 10);
+                        if (!isNaN(idx)) {
+                            this.deckIndex = idx;
+                            this.deckScrollTarget = idx;
+                            this.updateDeckCounterAndPagination();
+                        }
+                        if (dateStr) {
+                            this.openModalForDate(dateStr);
+                        }
+                    }
+                }
+            };
+
+            this.deckViewport.addEventListener('pointerup', handlePointerRelease);
+            this.deckViewport.addEventListener('pointercancel', handlePointerRelease);
+
+            this.deckViewport.addEventListener('pointerleave', (e) => {
+                this.deckTiltTargetX = 0;
+                this.deckTiltTargetY = 0;
+                if (this.isPointerDownOnDeck) {
+                    handlePointerRelease(e);
+                }
+            });
+
+            // Wheel / Trackpad Horizontal Continuous Scroll
+            this.deckViewport.addEventListener('wheel', (e) => {
+                if (this.activeView !== 'deck' || !this.deckCards || this.deckCards.length === 0) return;
+                e.preventDefault();
+                
+                const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+                this.deckScrollTarget += delta * 0.0028;
+                this.deckScrollTarget = Math.max(0, Math.min(this.deckCards.length - 1, this.deckScrollTarget));
+                this._deckUserNavigated = true;
+
+                clearTimeout(this._deckSnapTimer);
+                this._deckSnapTimer = setTimeout(() => {
+                    this.deckScrollTarget = Math.round(this.deckScrollTarget);
+                    this.deckIndex = this.deckScrollTarget;
+                    this.updateDeckCounterAndPagination();
+                }, 160);
+            }, { passive: false });
         }
 
-        // Keyboard Navigation (ArrowLeft / ArrowRight) for Deck View
+        // Keyboard arrow keys for horizontal deck navigation
         document.addEventListener('keydown', (e) => {
             if (this.activeView !== 'deck') return;
-            if (document.activeElement && ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+            if (this.modal && !this.modal.classList.contains('hidden')) return;
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
 
-            if (e.key === 'ArrowLeft') {
+            if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                e.preventDefault();
                 this.navigateDeck(-1);
-            } else if (e.key === 'ArrowRight') {
+            } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+                e.preventDefault();
                 this.navigateDeck(1);
             }
         });
     }
 
+    // ─── View Toggle Logic ───
+    switchView(viewName) {
+        if (this.activeView === viewName) return;
+        this.activeView = viewName;
+
+        if (viewName === 'grid') {
+            if (this.gridWrapper) this.gridWrapper.classList.remove('hidden');
+            if (this.deckContainer) this.deckContainer.classList.add('hidden');
+            if (this.btnViewGrid) this.btnViewGrid.classList.add('active');
+            if (this.btnViewDeck) this.btnViewDeck.classList.remove('active');
+        } else {
+            if (this.gridWrapper) this.gridWrapper.classList.add('hidden');
+            if (this.deckContainer) this.deckContainer.classList.remove('hidden');
+            if (this.btnViewDeck) this.btnViewDeck.classList.add('active');
+            if (this.btnViewGrid) this.btnViewGrid.classList.remove('active');
+            this.renderDeckView();
+        }
+    }
+
+    // ─── Continuous Physics Animation Loop for Scroll & 3D Tilt ───
+    startDeckAnimationLoop() {
+        if (this._deckLoopRunning) return;
+        this._deckLoopRunning = true;
+
+        const step = () => {
+            if (this.activeView === 'deck' && this.deckCards && this.deckCards.length > 0) {
+                // Lerp Scroll Position continuously
+                const scrollDiff = this.deckScrollTarget - this.deckScrollCurrent;
+                if (Math.abs(scrollDiff) > 0.0001) {
+                    this.deckScrollCurrent += scrollDiff * 0.14;
+                } else {
+                    this.deckScrollCurrent = this.deckScrollTarget;
+                }
+
+                // Lerp 3D Mouse Cursor Tilt Angles
+                const tiltDiffX = this.deckTiltTargetX - this.deckTiltCurrentX;
+                const tiltDiffY = this.deckTiltTargetY - this.deckTiltCurrentY;
+                if (Math.abs(tiltDiffX) > 0.01 || Math.abs(tiltDiffY) > 0.01) {
+                    this.deckTiltCurrentX += tiltDiffX * 0.12;
+                    this.deckTiltCurrentY += tiltDiffY * 0.12;
+                } else {
+                    this.deckTiltCurrentX = this.deckTiltTargetX;
+                    this.deckTiltCurrentY = this.deckTiltTargetY;
+                }
+
+                this.updateDeckTransformsRealtime();
+            }
+            requestAnimationFrame(step);
+        };
+        requestAnimationFrame(step);
+    }
+
+    // Dynamic Realtime Continuous Horizontal Transform Update
+    updateDeckTransformsRealtime() {
+        if (!this.deckTrack) return;
+        const cardElements = this.deckTrack.querySelectorAll('.journal-deck-card');
+
+        cardElements.forEach(cardEl => {
+            const idx = parseInt(cardEl.getAttribute('data-deck-index'), 10);
+            if (isNaN(idx)) return;
+
+            const offset = idx - this.deckScrollCurrent;
+            const absOffset = Math.abs(offset);
+            const dir = offset > 0 ? 1 : -1;
+
+            // Condensed Horizontal 3D Cover Flow Physics (Horizontal peek ~135px)
+            const translateX = offset * 135;
+            const translateZ = -absOffset * 85;
+            const rotateYCurve = -dir * Math.min(18, absOffset * 9);
+            const scale = Math.max(0.7, 1 - absOffset * 0.08);
+            const opacity = Math.max(0, 1 - absOffset * 0.25);
+            const zIndex = Math.round(100 - absOffset * 10);
+
+            // Dynamic 3D Cursor Tilt (Gentle & Refined)
+            const cardTiltFactor = Math.max(0.2, 1 - absOffset * 0.3);
+            const rotX = (this.deckTiltCurrentX * cardTiltFactor);
+            const rotY = rotateYCurve + (this.deckTiltCurrentY * cardTiltFactor);
+
+            cardEl.style.transform = `translate(-50%, -50%) translateX(${translateX}px) translateZ(${translateZ}px) rotateX(${rotX}deg) rotateY(${rotY}deg) scale(${scale})`;
+            cardEl.style.opacity = opacity;
+            cardEl.style.zIndex = zIndex;
+            cardEl.style.filter = absOffset > 0.5 ? `blur(${absOffset * 0.5}px)` : 'none';
+
+            if (absOffset < 0.5) {
+                cardEl.classList.add('active-card');
+            } else {
+                cardEl.classList.remove('active-card');
+            }
+        });
+    }
+
+    // ─── Ambient Dynamic Backdrop ───
+    updateAmbientGlow(activeCard) {
+        if (!this.deckAmbientGlow) this.deckAmbientGlow = document.getElementById('deck-ambient-glow');
+        if (!this.deckAmbientGlow) return;
+
+        let color1, color2;
+        if (!activeCard) {
+            color1 = 'rgba(223, 79, 41, 0.22)';
+            color2 = 'rgba(16, 185, 129, 0.08)';
+        } else if (activeCard.isToday) {
+            color1 = 'rgba(223, 79, 41, 0.38)';
+            color2 = 'rgba(247, 148, 29, 0.22)';
+        } else if (activeCard.entries && activeCard.entries.length > 0) {
+            color1 = 'rgba(16, 185, 129, 0.32)';
+            color2 = 'rgba(59, 130, 246, 0.15)';
+        } else {
+            color1 = 'rgba(99, 102, 241, 0.18)';
+            color2 = 'rgba(15, 23, 42, 0.12)';
+        }
+
+        this.deckAmbientGlow.style.background = `radial-gradient(circle at 50% 45%, ${color1} 0%, ${color2} 55%, transparent 75%)`;
+    }
+
+    playDeckTickSound() {
+        // Silenced audio as requested by user
+    }
+
+    // ─── Journal Card Deck View Rendering (Clean Theme Aesthetic) ───
+    renderDeckView() {
+        if (!this.deckTrack || !this.deckCounterBadge || !this.deckPaginationBar) return;
+
+        const daysInMonth = new Date(this.currentYear, this.currentMonth + 1, 0).getDate();
+        const todayStr = this.getTodayDateStr();
+        const monthNames = [
+            'January', 'February', 'March', 'April', 'May', 'June',
+            'July', 'August', 'September', 'October', 'November', 'December'
+        ];
+        const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+        // Build journal lookup map
+        const journalMap = {};
+        (this.journals || []).forEach(j => {
+            if (j.date) {
+                if (!journalMap[j.date]) journalMap[j.date] = [];
+                journalMap[j.date].push(j);
+            }
+        });
+
+        // Build card data for each day of the month
+        let allCards = [];
+        for (let day = 1; day <= daysInMonth; day++) {
+            const dateStr = `${this.currentYear}-${String(this.currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            const dayObj = new Date(this.currentYear, this.currentMonth, day);
+            const entries = journalMap[dateStr] || [];
+            const isToday = dateStr === todayStr;
+            allCards.push({ day, dateStr, dayObj, entries, isToday });
+        }
+
+        // Apply filter
+        if (this.deckFilter === 'entries') {
+            allCards = allCards.filter(c => c.entries.length > 0);
+        }
+
+        this.deckCards = allCards;
+
+        if (allCards.length === 0) {
+            this.deckTrack.innerHTML = '<div class="card-empty-prompt"><span class="empty-icon">📭</span><p>No entries found for this month.</p></div>';
+            this.deckCounterBadge.textContent = '0 cards';
+            this.deckPaginationBar.innerHTML = '';
+            this.updateAmbientGlow(null);
+            return;
+        }
+
+        // Clamp index
+        if (this.deckIndex >= allCards.length) this.deckIndex = allCards.length - 1;
+        if (this.deckIndex < 0) this.deckIndex = 0;
+
+        // Find today's index if user hasn't manually navigated yet
+        const todayIdx = allCards.findIndex(c => c.isToday);
+        if (todayIdx >= 0 && this.deckIndex === 0 && !this._deckUserNavigated) {
+            this.deckIndex = todayIdx;
+        }
+
+        this.deckScrollTarget = this.deckIndex;
+        this.deckScrollCurrent = this.deckIndex;
+
+        // Update ambient glow for current active card
+        const currentActiveCard = allCards[this.deckIndex];
+        this.updateAmbientGlow(currentActiveCard);
+
+        // Render Journal Cards with theme design system aesthetic
+        let cardsHTML = '';
+        allCards.forEach((card, i) => {
+            const isActive = i === this.deckIndex;
+            const dayOfWeek = dayNames[card.dayObj.getDay()];
+            const monthName = monthNames[this.currentMonth];
+            const hasEntry = card.entries.length > 0;
+            const latest = hasEntry ? card.entries[0] : null;
+
+            let statusTag = '';
+            if (card.isToday) {
+                statusTag = '<span class="card-status-tag is-today">TODAY</span>';
+            } else if (hasEntry) {
+                statusTag = '<span class="card-status-tag has-entry">WRITTEN</span>';
+            } else {
+                statusTag = '<span class="card-status-tag is-empty">EMPTY</span>';
+            }
+
+            let bodyHTML = '';
+            if (hasEntry) {
+                const titleHTML = latest.title ? `<div class="card-entry-title">${this.escapeHTML(latest.title)}</div>` : `<div class="card-entry-title">Journal Reflection</div>`;
+                const snippetText = this.escapeHTML(latest.content || '');
+                const wordCount = latest.content ? latest.content.trim().split(/\s+/).length : 0;
+                bodyHTML = `
+                    <div class="card-body-content" data-action="open-journal" data-date="${card.dateStr}" onclick="event.stopPropagation(); window.openJournalModal('${card.dateStr}');">
+                        ${titleHTML}
+                        <div class="card-entry-snippet">${snippetText}</div>
+                    </div>
+                    <div class="card-footer-row">
+                        <span class="card-word-count">${wordCount} ${wordCount === 1 ? 'word' : 'words'}</span>
+                        <button type="button" class="btn secondary card-action-btn" data-action="open-journal" data-date="${card.dateStr}" onclick="event.stopPropagation(); window.openJournalModal('${card.dateStr}');">✏️ Open Note</button>
+                    </div>
+                `;
+            } else {
+                bodyHTML = `
+                    <div class="card-body-content" data-action="open-journal" data-date="${card.dateStr}" onclick="event.stopPropagation(); window.openJournalModal('${card.dateStr}');">
+                        <div class="card-empty-prompt">
+                            <span class="empty-icon">✍️</span>
+                            <p>No entry for this day.<br>Tap to write reflection.</p>
+                        </div>
+                    </div>
+                    <div class="card-footer-row">
+                        <span class="card-word-count">Empty day</span>
+                        <button type="button" class="btn primary card-action-btn" data-action="open-journal" data-date="${card.dateStr}" onclick="event.stopPropagation(); window.openJournalModal('${card.dateStr}');">+ Write Note</button>
+                    </div>
+                `;
+            }
+
+            cardsHTML += `
+                <div class="journal-deck-card ${isActive ? 'active-card' : ''} ${card.isToday ? 'today-card' : ''}"
+                     data-deck-index="${i}" data-date="${card.dateStr}" data-action="open-journal"
+                     onclick="window.openJournalModal('${card.dateStr}');">
+                    
+                    <div class="card-header-row">
+                        <div class="card-date-group">
+                            <span class="card-date-num">${card.day}</span>
+                            <span class="card-date-month">${monthName.substring(0, 3)}</span>
+                        </div>
+                        <div style="display:flex; flex-direction:column; align-items:flex-end; gap:2px;">
+                            <span class="card-day-weekday">${dayOfWeek.substring(0, 3)}</span>
+                            ${statusTag}
+                        </div>
+                    </div>
+
+                    ${bodyHTML}
+                </div>
+            `;
+        });
+
+        this.deckTrack.innerHTML = cardsHTML;
+
+        // Update counter & pagination
+        this.updateDeckCounterAndPagination();
+
+        // Event binding for card action buttons (+ Write Note / ✏️ Open Note) and card body content
+        this.deckTrack.querySelectorAll('.card-action-btn, .card-body-content').forEach(el => {
+            el.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const cardEl = el.closest('.journal-deck-card');
+                const btnDate = el.getAttribute('data-date') || cardEl?.getAttribute('data-date');
+                const cardIdx = parseInt(cardEl?.getAttribute('data-deck-index'), 10);
+                if (!isNaN(cardIdx)) {
+                    this._deckUserNavigated = true;
+                    this.deckIndex = cardIdx;
+                    this.deckScrollTarget = cardIdx;
+                    this.updateDeckCounterAndPagination();
+                }
+                if (btnDate) {
+                    this.openModalForDate(btnDate);
+                }
+            });
+        });
+
+        // Event binding for clicking anywhere on journal deck cards
+        this.deckTrack.querySelectorAll('.journal-deck-card').forEach(cardEl => {
+            cardEl.addEventListener('click', (e) => {
+                if (e.target.closest('.card-action-btn') || e.target.closest('.card-body-content')) return;
+
+                const dateStr = cardEl.getAttribute('data-date');
+                const idx = parseInt(cardEl.getAttribute('data-deck-index'), 10);
+
+                if (!isNaN(idx)) {
+                    this._deckUserNavigated = true;
+                    this.deckIndex = idx;
+                    this.deckScrollTarget = idx;
+                    this.updateDeckCounterAndPagination();
+                }
+                if (dateStr) {
+                    this.openModalForDate(dateStr);
+                }
+            });
+        });
+
+        // Start real-time continuous scroll & 3D mouse tilt loop
+        this.startDeckAnimationLoop();
+    }
+
+    updateDeckCounterAndPagination() {
+        if (!this.deckCards || this.deckCards.length === 0) return;
+
+        if (this.deckCounterBadge) {
+            this.deckCounterBadge.textContent = `Day ${this.deckIndex + 1} of ${this.deckCards.length}`;
+        }
+
+        if (this.deckPaginationBar) {
+            let paginationHTML = '';
+            this.deckCards.forEach((card, i) => {
+                const isActive = i === this.deckIndex;
+                const hasEntry = card.entries.length > 0;
+                paginationHTML += `<button type="button" class="deck-dot ${isActive ? 'active' : ''} ${hasEntry ? 'has-entry-dot' : ''}" data-dot-index="${i}" aria-label="Day ${card.day} (${card.isToday ? 'Today' : card.dateStr})"></button>`;
+            });
+            this.deckPaginationBar.innerHTML = paginationHTML;
+
+            this.deckPaginationBar.querySelectorAll('.deck-dot').forEach(dot => {
+                dot.addEventListener('click', () => {
+                    const idx = parseInt(dot.getAttribute('data-dot-index'), 10);
+                    if (!isNaN(idx) && idx !== this.deckIndex) {
+                        this._deckUserNavigated = true;
+                        this.deckIndex = idx;
+                        this.deckScrollTarget = idx;
+                        this.updateDeckCounterAndPagination();
+                    }
+                });
+            });
+        }
+
+        if (this.deckCards[this.deckIndex]) {
+            this.updateAmbientGlow(this.deckCards[this.deckIndex]);
+        }
+    }
+
+    // ─── Deck Navigation ───
+    navigateDeck(direction) {
+        if (!this.deckCards || this.deckCards.length === 0) return;
+        this._deckUserNavigated = true;
+        const newIndex = Math.max(0, Math.min(this.deckCards.length - 1, this.deckIndex + direction));
+        if (newIndex === this.deckIndex) return;
+        this.deckIndex = newIndex;
+        this.deckScrollTarget = newIndex;
+        this.updateDeckCounterAndPagination();
+    }
+
+    getTodayDateStr() {
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const day = String(today.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
+    goToToday() {
+        const now = new Date();
+        this.currentYear = now.getFullYear();
+        this.currentMonth = now.getMonth();
+        this._deckUserNavigated = false;
+
+        const todayStr = this.getTodayDateStr();
+        const daysInMonth = new Date(this.currentYear, this.currentMonth + 1, 0).getDate();
+        let todayIdx = -1;
+        for (let day = 1; day <= daysInMonth; day++) {
+            const dateStr = `${this.currentYear}-${String(this.currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            if (dateStr === todayStr) {
+                todayIdx = day - 1;
+                break;
+            }
+        }
+        if (todayIdx >= 0) {
+            this.deckIndex = todayIdx;
+            this.deckScrollTarget = todayIdx;
+            this.deckScrollCurrent = todayIdx;
+        }
+
+        this.renderCalendar();
+        this.renderEntriesList();
+        this.renderDeckView();
+
+        if (this.calendarGrid) {
+            const todayCell = this.calendarGrid.querySelector(`.calendar-day[data-date="${todayStr}"]`);
+            if (todayCell) {
+                todayCell.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        }
+    }
+
+    async loadJournals() {
+        try {
+            const response = await fetch('http://localhost:3000/api/journals');
+            if (!response.ok) throw new Error('API request failed');
+            this.journals = await response.json();
+            Storage.set('dsa_journals', this.journals);
+        } catch (e) {
+            console.warn('Journals server unreachable, fallback to localStorage:', e);
+            this.journals = Storage.get('dsa_journals') || [];
+        }
+        this.renderCalendar();
+        this.renderEntriesList();
+        this.renderDeckView();
+    }
+
+    renderCalendar() {
+        if (!this.calendarGrid || !this.calendarMonthYear) return;
+
+        const monthNames = [
+            'January', 'February', 'March', 'April', 'May', 'June',
+            'July', 'August', 'September', 'October', 'November', 'December'
+        ];
+        this.calendarMonthYear.textContent = `${monthNames[this.currentMonth]} ${this.currentYear}`;
+
+        const firstDay = new Date(this.currentYear, this.currentMonth, 1).getDay();
+        const daysInMonth = new Date(this.currentYear, this.currentMonth + 1, 0).getDate();
+        const daysInPrevMonth = new Date(this.currentYear, this.currentMonth, 0).getDate();
+
+        const todayStr = this.getTodayDateStr();
+
+        const journalMap = {};
+        (this.journals || []).forEach(j => {
+            if (j.date) {
+                if (!journalMap[j.date]) journalMap[j.date] = [];
+                journalMap[j.date].push(j);
+            }
+        });
+
+        let gridHTML = '';
+
+        // Previous month filler days
+        for (let i = firstDay - 1; i >= 0; i--) {
+            const dayNum = daysInPrevMonth - i;
+            const prevMonth = this.currentMonth === 0 ? 11 : this.currentMonth - 1;
+            const prevYear = this.currentMonth === 0 ? this.currentYear - 1 : this.currentYear;
+            const dateStr = `${prevYear}-${String(prevMonth + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+            gridHTML += `
+                <div class="calendar-day other-month" data-date="${dateStr}">
+                    <div class="calendar-day-num">${dayNum}</div>
+                </div>
+            `;
+        }
+
+        // Current month days
+        for (let day = 1; day <= daysInMonth; day++) {
+            const dateStr = `${this.currentYear}-${String(this.currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            const isToday = dateStr === todayStr;
+            const dayEntries = journalMap[dateStr] || [];
+            
+            let entryContentHTML = '';
+            if (dayEntries.length > 0) {
+                const latest = dayEntries[0];
+                const displayTitle = latest.title ? latest.title : (latest.content.substring(0, 16) + '...');
+                entryContentHTML = `
+                    <div class="calendar-day-entry-badge" title="${this.escapeHTML(latest.title || latest.content)}">
+                        ${this.escapeHTML(displayTitle)}
+                    </div>
+                `;
+            } else {
+                entryContentHTML = `<span class="calendar-day-add-hint">+ Write</span>`;
+            }
+
+            const dotHTML = dayEntries.length > 0 ? `<span class="calendar-day-dot"></span>` : '';
+
+            gridHTML += `
+                <div class="calendar-day ${isToday ? 'today' : ''}" data-date="${dateStr}">
+                    <div class="calendar-day-num">
+                        <span>${day}</span>
+                        ${dotHTML}
+                    </div>
+                    ${entryContentHTML}
+                </div>
+            `;
+        }
+
+        // Next month filler days to complete grid cells
+        const totalCellsSoFar = firstDay + daysInMonth;
+        const totalGridCells = totalCellsSoFar > 35 ? 42 : 35;
+        const nextMonthDays = totalGridCells - totalCellsSoFar;
+
+        for (let day = 1; day <= nextMonthDays; day++) {
+            const nextMonth = this.currentMonth === 11 ? 0 : this.currentMonth + 1;
+            const nextYear = this.currentMonth === 11 ? this.currentYear + 1 : this.currentYear;
+            const dateStr = `${nextYear}-${String(nextMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            gridHTML += `
+                <div class="calendar-day other-month" data-date="${dateStr}">
+                    <div class="calendar-day-num">${day}</div>
+                </div>
+            `;
+        }
+
+        this.calendarGrid.innerHTML = gridHTML;
+
+        // Add click listener to all calendar days
+        const dayElements = this.calendarGrid.querySelectorAll('.calendar-day');
+        dayElements.forEach(el => {
+            el.addEventListener('click', () => {
+                const dateStr = el.getAttribute('data-date');
+                if (dateStr) {
+                    this.openModalForDate(dateStr);
+                }
+            });
+        });
+    }
+
+    renderEntriesList() {
+        if (!this.entriesList || !this.entriesCount || !this.emptyState) return;
+
+        if (!this.journals || this.journals.length === 0) {
+            this.entriesList.innerHTML = '';
+            this.entriesCount.textContent = '0 entries';
+            this.emptyState.classList.remove('hidden');
+            return;
+        }
+
+        this.emptyState.classList.add('hidden');
+        this.entriesCount.textContent = `${this.journals.length} ${this.journals.length === 1 ? 'entry' : 'entries'}`;
+
+        const sorted = [...this.journals].sort((a, b) => {
+            if (b.date !== a.date) return b.date.localeCompare(a.date);
+            return (b.timestamp || 0) - (a.timestamp || 0);
+        });
+
+        let listHTML = '';
+        sorted.forEach(entry => {
+            const formattedDate = this.formatDateDisplay(entry.date);
+            const titleHTML = entry.title ? `<div class="journal-entry-title">${this.escapeHTML(entry.title)}</div>` : '';
+            const snippet = this.escapeHTML(entry.content);
+
+            listHTML += `
+                <div class="journal-entry-card" data-id="${entry.id}">
+                    <div class="journal-entry-meta">
+                        <span class="journal-entry-date-badge">📅 ${formattedDate}</span>
+                        <div class="journal-entry-actions">
+                            <button type="button" class="btn secondary sm btn-edit-journal" data-id="${entry.id}">Edit</button>
+                            <button type="button" class="btn danger sm btn-delete-journal-item" data-id="${entry.id}">Delete</button>
+                        </div>
+                    </div>
+                    ${titleHTML}
+                    <div class="journal-entry-snippet">${snippet}</div>
+                </div>
+            `;
+        });
+
+        this.entriesList.innerHTML = listHTML;
+
+        this.entriesList.querySelectorAll('.btn-edit-journal').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const id = btn.getAttribute('data-id');
+                const entry = this.journals.find(j => j.id === id);
+                if (entry) {
+                    this.openModalForEntry(entry);
+                }
+            });
+        });
+
+        this.entriesList.querySelectorAll('.btn-delete-journal-item').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const id = btn.getAttribute('data-id');
+                if (id) {
+                    this.deleteEntry(id);
+                }
+            });
+        });
+    }
+
+    formatDateDisplay(dateStr) {
+        if (!dateStr) return '';
+        const parts = dateStr.split('-');
+        if (parts.length !== 3) return dateStr;
+        const dateObj = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+        return dateObj.toLocaleDateString('en-US', {
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric'
+        });
+    }
 
     openModalForDate(dateStr) {
         const existingEntry = (this.journals || []).find(j => j.date === dateStr);
         if (existingEntry) {
             this.openModalForEntry(existingEntry);
         } else {
-            this.inputId.value = 'journal_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
-            this.inputDate.value = dateStr;
-            this.inputTitle.value = '';
-            this.inputContent.value = '';
-
+            const newId = 'journal_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+            if (this.inputId) this.inputId.value = newId;
+            if (this.inputDate) this.inputDate.value = dateStr;
+            if (this.inputTitle) this.inputTitle.value = '';
+            
             const draft = Storage.get(`journal_draft_${dateStr}`);
             if (draft) {
-                this.inputTitle.value = draft.title || '';
-                this.inputContent.value = draft.content || '';
-                if (this.draftIndicator) {
-                    this.draftIndicator.textContent = '✏️ Loaded unsaved draft';
-                    this.draftIndicator.classList.remove('hidden');
-                }
+                if (this.inputTitle) this.inputTitle.value = draft.title || '';
+                if (this.inputContent) this.inputContent.value = draft.content || '';
+                if (this.draftIndicator) this.draftIndicator.classList.remove('hidden');
             } else {
+                if (this.inputContent) this.inputContent.value = '';
                 if (this.draftIndicator) this.draftIndicator.classList.add('hidden');
             }
 
-            if (this.modalDateDisplay) this.modalDateDisplay.textContent = this.formatDateDisplay(dateStr);
-            if (this.modalTitleDisplay) this.modalTitleDisplay.textContent = 'Write Journal Entry';
+            if (this.modalDateDisplay) this.modalDateDisplay.textContent = `Editing notes for ${this.formatDateDisplay(dateStr)}`;
+            if (this.modalTitleDisplay) this.modalTitleDisplay.textContent = "Journal Entry";
             if (this.btnDelete) this.btnDelete.classList.add('hidden');
 
+            const saveBtn = document.getElementById('btn-save-journal');
+            if (saveBtn) saveBtn.textContent = 'Save Entry';
+
             this.updateWordCount();
-            if (this.modal) this.modal.classList.remove('hidden');
-            setTimeout(() => { if (this.inputTitle) this.inputTitle.focus(); }, 100);
+            this.showModal();
         }
     }
 
     openModalForEntry(entry) {
-        if (!entry) return;
-        this.inputId.value = entry.id;
-        this.inputDate.value = entry.date;
-        this.inputTitle.value = entry.title || '';
-        this.inputContent.value = entry.content || '';
-
-        if (this.modalDateDisplay) this.modalDateDisplay.textContent = this.formatDateDisplay(entry.date);
-        if (this.modalTitleDisplay) this.modalTitleDisplay.textContent = 'Edit Journal Entry';
+        if (this.inputId) this.inputId.value = entry.id;
+        if (this.inputDate) this.inputDate.value = entry.date;
+        if (this.inputTitle) this.inputTitle.value = entry.title || '';
+        if (this.inputContent) this.inputContent.value = entry.content || '';
+        if (this.modalDateDisplay) this.modalDateDisplay.textContent = `Editing notes for ${this.formatDateDisplay(entry.date)}`;
+        if (this.modalTitleDisplay) this.modalTitleDisplay.textContent = "Journal Entry";
         if (this.btnDelete) this.btnDelete.classList.remove('hidden');
-
         if (this.draftIndicator) this.draftIndicator.classList.add('hidden');
+
+        const saveBtn = document.getElementById('btn-save-journal');
+        if (saveBtn) saveBtn.textContent = 'Update Entry';
+
         this.updateWordCount();
-        if (this.modal) this.modal.classList.remove('hidden');
-        setTimeout(() => { if (this.inputContent) this.inputContent.focus(); }, 100);
+        this.showModal();
+    }
+
+    showModal() {
+        if (!this.modal) {
+            this.modal = document.getElementById('journal-modal');
+        }
+        if (this.modal) {
+            this.modal.classList.remove('hidden');
+            this.modal.style.display = 'flex';
+            this.modal.style.opacity = '1';
+            this.modal.style.visibility = 'visible';
+            this.modal.style.pointerEvents = 'auto';
+
+            void this.modal.offsetWidth; // Force DOM reflow for CSS transition
+            this.modal.classList.add('active');
+            document.body.classList.add('body-scroll-locked');
+            
+            setTimeout(() => {
+                if (this.inputContent) this.inputContent.focus();
+            }, 50);
+        }
     }
 
     closeModal() {
-        if (this.modal) this.modal.classList.add('hidden');
-        if (this.draftTimer) {
-            clearTimeout(this.draftTimer);
-            this.draftTimer = null;
+        if (!this.modal) {
+            this.modal = document.getElementById('journal-modal');
+        }
+        if (this.modal) {
+            const dateStr = (this.inputDate && this.inputDate.value) ? this.inputDate.value : this.getTodayDateStr();
+            const content = this.inputContent ? this.inputContent.value.trim() : '';
+            const title = this.inputTitle ? this.inputTitle.value.trim() : '';
+            if (content) {
+                Storage.set(`journal_draft_${dateStr}`, { title, content, savedAt: Date.now() });
+            }
+
+            this.modal.classList.remove('active');
+            document.body.classList.remove('body-scroll-locked');
+            
+            setTimeout(() => {
+                this.modal.classList.add('hidden');
+                this.modal.style.display = 'none';
+                this.modal.style.opacity = '0';
+                this.modal.style.visibility = 'hidden';
+                this.modal.style.pointerEvents = 'none';
+            }, 250);
         }
     }
 
     updateWordCount() {
-        if (!this.wordCountBadge || !this.inputContent) return;
+        if (!this.inputContent || !this.wordCountBadge) return;
         const text = this.inputContent.value.trim();
-        const words = text ? text.split(/\s+/).length : 0;
-        this.wordCountBadge.textContent = `${words} ${words === 1 ? 'word' : 'words'}`;
+        const wordCount = text ? text.split(/\s+/).length : 0;
+        this.wordCountBadge.textContent = `${wordCount} ${wordCount === 1 ? 'word' : 'words'}`;
     }
 
     triggerDraftAutoSave() {
+        const dateStr = (this.inputDate && this.inputDate.value) ? this.inputDate.value : this.getTodayDateStr();
+        const title = this.inputTitle ? this.inputTitle.value : '';
+        const content = this.inputContent ? this.inputContent.value : '';
+
         if (this.draftTimer) clearTimeout(this.draftTimer);
         this.draftTimer = setTimeout(() => {
-            const dateStr = this.inputDate.value;
-            const title = this.inputTitle.value;
-            const content = this.inputContent.value;
-            if (content.trim() || title.trim()) {
+            if (content.trim()) {
                 Storage.set(`journal_draft_${dateStr}`, { title, content, savedAt: Date.now() });
                 if (this.draftIndicator) {
-                    const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
                     this.draftIndicator.textContent = `✓ Draft auto-saved at ${timeStr}`;
                     this.draftIndicator.classList.remove('hidden');
                 }
@@ -1793,13 +3568,21 @@ this.draftIndicator = document.getElementById('scratchpad-draft-indicator');
     }
 
     async saveEntry() {
-        const id = this.inputId.value || ('journal_' + Date.now());
-        const date = this.inputDate.value || this.getTodayDateStr();
-        const title = this.inputTitle.value.trim();
-        const content = this.inputContent.value.trim();
+        if (this._isSaving) return;
+        this._isSaving = true;
+
+        const saveBtn = document.getElementById('btn-save-journal');
+        if (saveBtn) saveBtn.disabled = true;
+
+        const id = (this.inputId && this.inputId.value) ? this.inputId.value : ('journal_' + Date.now());
+        const date = (this.inputDate && this.inputDate.value) ? this.inputDate.value : this.getTodayDateStr();
+        const title = this.inputTitle ? this.inputTitle.value.trim() : '';
+        const content = this.inputContent ? this.inputContent.value.trim() : '';
 
         if (!content) {
             Toast.show('Please write something in your journal entry before saving.', 'error');
+            this._isSaving = false;
+            if (saveBtn) saveBtn.disabled = false;
             return;
         }
 
@@ -1822,7 +3605,7 @@ this.draftIndicator = document.getElementById('scratchpad-draft-indicator');
             if (!response.ok) throw new Error('API save failed');
 
             localStorage.removeItem(`journal_draft_${date}`);
-
+            
             const existingIdx = this.journals.findIndex(j => j.id === id);
             if (existingIdx >= 0) {
                 this.journals[existingIdx] = entryPayload;
@@ -1851,6 +3634,9 @@ this.draftIndicator = document.getElementById('scratchpad-draft-indicator');
             this.renderCalendar();
             this.renderEntriesList();
             this.renderDeckView();
+        } finally {
+            this._isSaving = false;
+            if (saveBtn) saveBtn.disabled = false;
         }
     }
 
@@ -1880,295 +3666,6 @@ this.draftIndicator = document.getElementById('scratchpad-draft-indicator');
             this.renderEntriesList();
             this.renderDeckView();
         }
-    }
-
-    switchView(mode) {
-        this.activeView = mode;
-        const gridView = document.getElementById('journal-grid-view');
-        const deckView = document.getElementById('journal-deck-view');
-
-        if (mode === 'grid') {
-            if (gridView) gridView.classList.remove('hidden');
-            if (deckView) deckView.classList.add('hidden');
-            if (this.btnViewGrid) this.btnViewGrid.classList.add('active');
-            if (this.btnViewDeck) this.btnViewDeck.classList.remove('active');
-        } else {
-            if (gridView) gridView.classList.add('hidden');
-            if (deckView) deckView.classList.remove('hidden');
-            if (this.btnViewGrid) this.btnViewGrid.classList.remove('active');
-            if (this.btnViewDeck) this.btnViewDeck.classList.add('active');
-            this.renderDeckView();
-        }
-    }
-
-    renderDeckView() {
-        if (!this.deckTrack || !this.deckCounterBadge || !this.deckPaginationBar) return;
-
-        const daysInMonth = new Date(this.currentYear, this.currentMonth + 1, 0).getDate();
-        const todayStr = this.getTodayDateStr();
-
-        const journalMap = {};
-        (this.journals || []).forEach(j => {
-            if (j.date) {
-                if (!journalMap[j.date]) journalMap[j.date] = [];
-                journalMap[j.date].push(j);
-            }
-        });
-
-        let allCards = [];
-        const monthNames = [
-            'January', 'February', 'March', 'April', 'May', 'June',
-            'July', 'August', 'September', 'October', 'November', 'December'
-        ];
-        const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-
-        for (let day = 1; day <= daysInMonth; day++) {
-            const dateStr = `${this.currentYear}-${String(this.currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-            const dayObj = new Date(this.currentYear, this.currentMonth, day);
-            const entries = journalMap[dateStr] || [];
-            allCards.push({
-                day,
-                dateStr,
-                dayObj,
-                entries,
-                isToday: dateStr === todayStr
-            });
-        }
-
-        if (this.deckFilter === 'entries') {
-            allCards = allCards.filter(c => c.entries.length > 0);
-        }
-
-        this.deckCards = allCards;
-
-        if (allCards.length === 0) {
-            this.deckTrack.innerHTML = '<div class="card-empty-prompt"><span class="empty-icon">📭</span><p>No entries found for this month.</p></div>';
-            this.deckCounterBadge.textContent = '0 cards';
-            this.deckPaginationBar.innerHTML = '';
-            this.updateAmbientGlow(null);
-            return;
-        }
-
-        if (this.deckIndex >= allCards.length) this.deckIndex = allCards.length - 1;
-        if (this.deckIndex < 0) this.deckIndex = 0;
-
-        const todayIdx = allCards.findIndex(c => c.isToday);
-        if (todayIdx >= 0 && this.deckIndex === 0 && !this._deckUserNavigated) {
-            this.deckIndex = todayIdx;
-        }
-
-        this.deckScrollTarget = this.deckIndex;
-        this.deckScrollCurrent = this.deckIndex;
-
-        const currentActiveCard = allCards[this.deckIndex];
-        this.updateAmbientGlow(currentActiveCard);
-
-        const palettes = [
-            { bg: '#facc15', ink: '#1c1917', muted: '#44403c', accent: '#dc2626', icon: '🥨' },
-            { bg: '#ec4899', ink: '#ffffff', muted: '#fbcfe8', accent: '#fef08a', icon: '🥧' },
-            { bg: '#451a03', ink: '#fef08a', muted: '#f59e0b', accent: '#d97706', icon: '🧁' },
-            { bg: '#06b6d4', ink: '#0f172a', muted: '#1e293b', accent: '#ffffff', icon: '🥪' },
-            { bg: '#10b981', ink: '#064e3b', muted: '#047857', accent: '#fef08a', icon: '🍃' },
-            { bg: '#8b5cf6', ink: '#ffffff', muted: '#ddd6fe', accent: '#facc15', icon: '🔮' },
-            { bg: '#f97316', ink: '#ffffff', muted: '#ffedd5', accent: '#fef08a', icon: '🔥' }
-        ];
-
-        let cardsHTML = '';
-        allCards.forEach((card, i) => {
-            const isActive = i === this.deckIndex;
-            const p = palettes[card.day % palettes.length];
-            const dayOfWeek = dayNames[card.dayObj.getDay()];
-            const monthName = monthNames[this.currentMonth];
-            const hasEntry = card.entries.length > 0;
-            const latest = hasEntry ? card.entries[0] : null;
-
-            const dateHeaderTitle = `${dayOfWeek.substring(0, 3)}, ${monthName.substring(0, 3)} ${card.day}`;
-
-            let statusTag = '';
-            if (card.isToday) {
-                statusTag = '<span class="card-status-pill is-today">TODAY</span>';
-            } else if (hasEntry) {
-                statusTag = '<span class="card-status-pill">WRITTEN</span>';
-            } else {
-                statusTag = '<span class="card-status-pill">EMPTY</span>';
-            }
-
-            let entryTitle = hasEntry ? (latest.title || 'Journal Reflection') : 'Daily Scratchpad Reflection';
-            let snippetText = hasEntry ? (latest.content || '') : 'No journal entry recorded for this date yet. Tap to record your thoughts & progress...';
-            let wordCount = hasEntry ? (latest.content ? latest.content.trim().split(/\s+/).length : 0) : 0;
-            let wordCountStr = hasEntry ? `${wordCount} ${wordCount === 1 ? 'word' : 'words'}` : 'Empty entry';
-
-            cardsHTML += `
-                <article class="journal-deck-card ${isActive ? 'is-active' : ''}" 
-                         data-deck-index="${i}" 
-                         data-date="${card.dateStr}"
-                         style="background: ${p.bg}; color: ${p.ink};">
-                    <div class="deck-card-topbar">
-                        <div class="deck-card-date">
-                            <span class="date-icon">${p.icon}</span>
-                            <span class="date-str">${dateHeaderTitle}</span>
-                        </div>
-                        ${statusTag}
-                    </div>
-
-                    <div class="deck-card-body clickable-card-body" data-action="open-modal" data-date="${card.dateStr}">
-                        <h3 class="deck-card-title" style="color: ${p.ink}">${this.escapeHTML(entryTitle)}</h3>
-                        <p class="deck-card-snippet" style="color: ${p.muted}">${this.escapeHTML(snippetText)}</p>
-                    </div>
-
-                    <div class="deck-card-footer" style="border-color: rgba(255,255,255,0.2)">
-                        <span class="deck-card-meta" style="color: ${p.muted}">✍️ ${wordCountStr}</span>
-                        <button type="button" class="card-action-btn write-note-btn" data-action="open-modal" data-date="${card.dateStr}" style="background: ${p.ink}; color: ${p.bg}">
-                            ${hasEntry ? '✏️ Edit Note' : '➕ Write Note'}
-                        </button>
-                    </div>
-                </article>
-            `;
-        });
-
-        this.deckTrack.innerHTML = cardsHTML;
-
-        // Bind Deck Card Click Listeners (Card Body & Write Note Button)
-        this.deckTrack.querySelectorAll('[data-action="open-modal"]').forEach(el => {
-            el.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                const targetDate = el.getAttribute('data-date');
-                if (targetDate) {
-                    this.openModalForDate(targetDate);
-                }
-            });
-        });
-
-        this.updateDeckCounterAndPagination();
-        this.startDeckAnimationLoop();
-    }
-
-    navigateDeck(direction) {
-        if (!this.deckCards || this.deckCards.length === 0) return;
-        const newIdx = Math.max(0, Math.min(this.deckCards.length - 1, this.deckIndex + direction));
-        if (newIdx !== this.deckIndex) {
-            this.deckIndex = newIdx;
-            this.deckScrollTarget = newIdx;
-            this._deckUserNavigated = true;
-            this.updateDeckCounterAndPagination();
-        }
-    }
-
-    updateDeckCounterAndPagination() {
-        if (!this.deckCards || this.deckCards.length === 0) return;
-        const currentIdx = Math.max(0, Math.min(this.deckCards.length - 1, Math.round(this.deckScrollCurrent)));
-
-        if (this.deckCounterBadge) {
-            this.deckCounterBadge.textContent = `${currentIdx + 1} of ${this.deckCards.length}`;
-        }
-
-        if (this.deckPaginationBar) {
-            let dotsHTML = '';
-            const total = this.deckCards.length;
-            for (let i = 0; i < total; i++) {
-                const isActive = i === currentIdx;
-                dotsHTML += `<button type="button" class="deck-page-dot ${isActive ? 'active' : ''}" data-index="${i}" title="Card ${i + 1}"></button>`;
-            }
-            this.deckPaginationBar.innerHTML = dotsHTML;
-
-            this.deckPaginationBar.querySelectorAll('.deck-page-dot').forEach(dot => {
-                dot.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    const idx = parseInt(dot.getAttribute('data-index'), 10);
-                    if (!isNaN(idx)) {
-                        this.deckIndex = idx;
-                        this.deckScrollTarget = idx;
-                        this._deckUserNavigated = true;
-                        this.updateDeckCounterAndPagination();
-                    }
-                });
-            });
-        }
-
-        if (this.deckCards[currentIdx]) {
-            this.updateAmbientGlow(this.deckCards[currentIdx]);
-        }
-    }
-
-    updateAmbientGlow(card) {
-        if (!this.deckAmbientGlow) return;
-        if (!card) {
-            this.deckAmbientGlow.style.opacity = '0';
-            return;
-        }
-        const palettes = [
-            '#facc15', '#ec4899', '#f59e0b', '#06b6d4', '#10b981', '#8b5cf6', '#f97316'
-        ];
-        const color = palettes[card.day % palettes.length];
-        this.deckAmbientGlow.style.background = `radial-gradient(circle at center, ${color}33 0%, transparent 70%)`;
-        this.deckAmbientGlow.style.opacity = '1';
-    }
-
-    startDeckAnimationLoop() {
-        if (this._deckLoopRunning) return;
-        this._deckLoopRunning = true;
-
-        const step = () => {
-            if (this.activeView === 'deck' && this.deckCards && this.deckCards.length > 0) {
-                const scrollDiff = this.deckScrollTarget - this.deckScrollCurrent;
-                if (Math.abs(scrollDiff) > 0.0001) {
-                    this.deckScrollCurrent += scrollDiff * 0.14;
-                } else {
-                    this.deckScrollCurrent = this.deckScrollTarget;
-                }
-
-                const tiltDiffX = this.deckTiltTargetX - this.deckTiltCurrentX;
-                const tiltDiffY = this.deckTiltTargetY - this.deckTiltCurrentY;
-                if (Math.abs(tiltDiffX) > 0.01 || Math.abs(tiltDiffY) > 0.01) {
-                    this.deckTiltCurrentX += tiltDiffX * 0.12;
-                    this.deckTiltCurrentY += tiltDiffY * 0.12;
-                } else {
-                    this.deckTiltCurrentX = this.deckTiltTargetX;
-                    this.deckTiltCurrentY = this.deckTiltTargetY;
-                }
-
-                this.updateDeckTransformsRealtime();
-            }
-            requestAnimationFrame(step);
-        };
-        requestAnimationFrame(step);
-    }
-
-    updateDeckTransformsRealtime() {
-        if (!this.deckTrack) return;
-        const cardElements = this.deckTrack.querySelectorAll('.journal-deck-card');
-
-        cardElements.forEach(cardEl => {
-            const idx = parseInt(cardEl.getAttribute('data-deck-index'), 10);
-            if (isNaN(idx)) return;
-
-            const offset = idx - this.deckScrollCurrent;
-            const absOffset = Math.abs(offset);
-            const dir = offset > 0 ? 1 : -1;
-
-            const translateX = offset * 135;
-            const translateZ = -absOffset * 85;
-            const rotateYCurve = -dir * Math.min(18, absOffset * 9);
-            const scale = Math.max(0.7, 1 - absOffset * 0.08);
-            const opacity = Math.max(0, 1 - absOffset * 0.25);
-
-            const rotX = (absOffset < 0.5) ? this.deckTiltCurrentX : 0;
-            const rotY = (absOffset < 0.5) ? (rotateYCurve + this.deckTiltCurrentY) : rotateYCurve;
-
-            cardEl.style.transform = `translate(-50%, -50%) translateX(${translateX}px) translateZ(${translateZ}px) rotateX(${rotX}deg) rotateY(${rotY}deg) scale(${scale})`;
-            cardEl.style.opacity = opacity.toFixed(3);
-
-            const isCardActive = absOffset < 0.5;
-            const zIndex = isCardActive ? 1000 : Math.round(500 - absOffset * 20);
-            cardEl.style.zIndex = zIndex;
-
-            if (isCardActive) {
-                cardEl.classList.add('is-active');
-            } else {
-                cardEl.classList.remove('is-active');
-            }
-        });
     }
 
     escapeHTML(str) {
