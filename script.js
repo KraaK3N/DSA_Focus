@@ -1557,6 +1557,631 @@ class App {
     }
 }
 
+
+
+class JournalManager {
+constructor(app) {
+this.app = app;
+this.journals = [];
+this.currentYear = new Date().getFullYear();
+this.currentMonth = new Date().getMonth();
+this.draftTimer = null;
+
+this.initElements();
+this.bindEvents();
+this.loadJournals();
+}
+
+initElements() {
+this.viewJournal = document.getElementById('journal-view');
+this.btnOpenModal = document.getElementById('btn-open-journal-modal');
+this.calendarGrid = document.getElementById('calendar-grid');
+this.calendarMonthYear = document.getElementById('calendar-month-year');
+this.btnPrevMonth = document.getElementById('btn-prev-month');
+this.btnNextMonth = document.getElementById('btn-next-month');
+this.btnToday = document.getElementById('btn-calendar-today');
+
+this.entriesList = document.getElementById('journal-entries-list');
+this.entriesCount = document.getElementById('journal-entries-count');
+this.emptyState = document.getElementById('journal-empty');
+
+// Modal elements
+this.modal = document.getElementById('journal-modal');
+this.btnCloseModal = document.getElementById('btn-close-journal-modal');
+this.btnCancel = document.getElementById('btn-cancel-journal');
+this.btnDelete = document.getElementById('btn-delete-journal');
+this.form = document.getElementById('journal-form');
+this.inputId = document.getElementById('journal-entry-id');
+this.inputDate = document.getElementById('journal-entry-date');
+this.inputTitle = document.getElementById('journal-title');
+this.inputContent = document.getElementById('journal-content');
+this.modalDateDisplay = document.getElementById('journal-modal-date');
+this.modalTitleDisplay = document.getElementById('journal-modal-title');
+this.wordCountBadge = document.getElementById('scratchpad-word-count');
+this.draftIndicator = document.getElementById('scratchpad-draft-indicator');
+}
+
+    bindEvents() {
+        // Document-level click handler for opening modal reliably
+        document.addEventListener('click', (e) => {
+            const btn = e.target.closest('#btn-open-journal-modal') || e.target.closest('.journal-new-btn') || e.target.closest('[data-action="open-journal"]');
+            if (btn) {
+                e.preventDefault();
+                e.stopPropagation();
+                const todayStr = this.getTodayDateStr();
+                this.openModalForDate(todayStr);
+            }
+        });
+
+        if (this.btnCloseModal) {
+            this.btnCloseModal.addEventListener('click', () => this.closeModal());
+        }
+
+        if (this.btnCancel) {
+            this.btnCancel.addEventListener('click', () => this.closeModal());
+        }
+
+        document.addEventListener('click', (e) => {
+            if (this.modal && e.target === this.modal) {
+                this.closeModal();
+            }
+        });
+
+        // Calendar Month Navigation
+        if (this.btnPrevMonth) {
+            this.btnPrevMonth.addEventListener('click', () => {
+                this.currentMonth--;
+                if (this.currentMonth < 0) {
+                    this.currentMonth = 11;
+                    this.currentYear--;
+                }
+                this.renderCalendar();
+            });
+        }
+
+        if (this.btnNextMonth) {
+            this.btnNextMonth.addEventListener('click', () => {
+                this.currentMonth++;
+                if (this.currentMonth > 11) {
+                    this.currentMonth = 0;
+                    this.currentYear++;
+                }
+                this.renderCalendar();
+            });
+        }
+
+        if (this.btnToday) {
+            this.btnToday.addEventListener('click', () => {
+                const now = new Date();
+                this.currentYear = now.getFullYear();
+                this.currentMonth = now.getMonth();
+                this.renderCalendar();
+                this.renderDeckView();
+            });
+        }
+
+        // View Mode Toggle (Grid vs Deck)
+        if (this.btnViewGrid) {
+            this.btnViewGrid.addEventListener('click', () => this.switchViewMode('grid'));
+        }
+        if (this.btnViewDeck) {
+            this.btnViewDeck.addEventListener('click', () => this.switchViewMode('deck'));
+        }
+
+        // Deck Filters (All Days vs Entries Only)
+        if (this.deckFilterAll) {
+            this.deckFilterAll.addEventListener('click', () => {
+                this.deckFilterMode = 'all';
+                this.deckFilterAll.classList.add('active');
+                if (this.deckFilterEntries) this.deckFilterEntries.classList.remove('active');
+                this.renderDeckView();
+            });
+        }
+        if (this.deckFilterEntries) {
+            this.deckFilterEntries.addEventListener('click', () => {
+                this.deckFilterMode = 'entries';
+                this.deckFilterEntries.classList.add('active');
+                if (this.deckFilterAll) this.deckFilterAll.classList.remove('active');
+                this.renderDeckView();
+            });
+        }
+
+        // Deck Arrows
+        if (this.btnDeckPrev) {
+            this.btnDeckPrev.addEventListener('click', () => this.navigateDeck(-1));
+        }
+        if (this.btnDeckNext) {
+            this.btnDeckNext.addEventListener('click', () => this.navigateDeck(1));
+        }
+
+        // Keyboard Navigation (ArrowLeft / ArrowRight) for Deck View
+        document.addEventListener('keydown', (e) => {
+            if (this.activeView !== 'deck') return;
+            if (document.activeElement && ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+
+            if (e.key === 'ArrowLeft') {
+                this.navigateDeck(-1);
+            } else if (e.key === 'ArrowRight') {
+                this.navigateDeck(1);
+            }
+        });
+    }
+
+
+    openModalForDate(dateStr) {
+        const existingEntry = (this.journals || []).find(j => j.date === dateStr);
+        if (existingEntry) {
+            this.openModalForEntry(existingEntry);
+        } else {
+            this.inputId.value = 'journal_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+            this.inputDate.value = dateStr;
+            this.inputTitle.value = '';
+            this.inputContent.value = '';
+
+            const draft = Storage.get(`journal_draft_${dateStr}`);
+            if (draft) {
+                this.inputTitle.value = draft.title || '';
+                this.inputContent.value = draft.content || '';
+                if (this.draftIndicator) {
+                    this.draftIndicator.textContent = '✏️ Loaded unsaved draft';
+                    this.draftIndicator.classList.remove('hidden');
+                }
+            } else {
+                if (this.draftIndicator) this.draftIndicator.classList.add('hidden');
+            }
+
+            if (this.modalDateDisplay) this.modalDateDisplay.textContent = this.formatDateDisplay(dateStr);
+            if (this.modalTitleDisplay) this.modalTitleDisplay.textContent = 'Write Journal Entry';
+            if (this.btnDelete) this.btnDelete.classList.add('hidden');
+
+            this.updateWordCount();
+            if (this.modal) this.modal.classList.remove('hidden');
+            setTimeout(() => { if (this.inputTitle) this.inputTitle.focus(); }, 100);
+        }
+    }
+
+    openModalForEntry(entry) {
+        if (!entry) return;
+        this.inputId.value = entry.id;
+        this.inputDate.value = entry.date;
+        this.inputTitle.value = entry.title || '';
+        this.inputContent.value = entry.content || '';
+
+        if (this.modalDateDisplay) this.modalDateDisplay.textContent = this.formatDateDisplay(entry.date);
+        if (this.modalTitleDisplay) this.modalTitleDisplay.textContent = 'Edit Journal Entry';
+        if (this.btnDelete) this.btnDelete.classList.remove('hidden');
+
+        if (this.draftIndicator) this.draftIndicator.classList.add('hidden');
+        this.updateWordCount();
+        if (this.modal) this.modal.classList.remove('hidden');
+        setTimeout(() => { if (this.inputContent) this.inputContent.focus(); }, 100);
+    }
+
+    closeModal() {
+        if (this.modal) this.modal.classList.add('hidden');
+        if (this.draftTimer) {
+            clearTimeout(this.draftTimer);
+            this.draftTimer = null;
+        }
+    }
+
+    updateWordCount() {
+        if (!this.wordCountBadge || !this.inputContent) return;
+        const text = this.inputContent.value.trim();
+        const words = text ? text.split(/\s+/).length : 0;
+        this.wordCountBadge.textContent = `${words} ${words === 1 ? 'word' : 'words'}`;
+    }
+
+    triggerDraftAutoSave() {
+        if (this.draftTimer) clearTimeout(this.draftTimer);
+        this.draftTimer = setTimeout(() => {
+            const dateStr = this.inputDate.value;
+            const title = this.inputTitle.value;
+            const content = this.inputContent.value;
+            if (content.trim() || title.trim()) {
+                Storage.set(`journal_draft_${dateStr}`, { title, content, savedAt: Date.now() });
+                if (this.draftIndicator) {
+                    const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    this.draftIndicator.textContent = `✓ Draft auto-saved at ${timeStr}`;
+                    this.draftIndicator.classList.remove('hidden');
+                }
+            } else {
+                localStorage.removeItem(`journal_draft_${dateStr}`);
+                if (this.draftIndicator) this.draftIndicator.classList.add('hidden');
+            }
+        }, 300);
+    }
+
+    async saveEntry() {
+        const id = this.inputId.value || ('journal_' + Date.now());
+        const date = this.inputDate.value || this.getTodayDateStr();
+        const title = this.inputTitle.value.trim();
+        const content = this.inputContent.value.trim();
+
+        if (!content) {
+            Toast.show('Please write something in your journal entry before saving.', 'error');
+            return;
+        }
+
+        const entryPayload = {
+            id,
+            date,
+            timestamp: Date.now(),
+            title,
+            content,
+            updatedAt: Date.now()
+        };
+
+        try {
+            const response = await fetch('http://localhost:3000/api/journals', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(entryPayload)
+            });
+
+            if (!response.ok) throw new Error('API save failed');
+
+            localStorage.removeItem(`journal_draft_${date}`);
+
+            const existingIdx = this.journals.findIndex(j => j.id === id);
+            if (existingIdx >= 0) {
+                this.journals[existingIdx] = entryPayload;
+            } else {
+                this.journals.unshift(entryPayload);
+            }
+
+            Storage.set('dsa_journals', this.journals);
+            Toast.show('Journal entry saved successfully! 📝', 'success');
+            this.closeModal();
+            this.renderCalendar();
+            this.renderEntriesList();
+            this.renderDeckView();
+        } catch (e) {
+            console.warn('Backend save failed, using local storage fallback:', e);
+            const existingIdx = this.journals.findIndex(j => j.id === id);
+            if (existingIdx >= 0) {
+                this.journals[existingIdx] = entryPayload;
+            } else {
+                this.journals.unshift(entryPayload);
+            }
+            Storage.set('dsa_journals', this.journals);
+            localStorage.removeItem(`journal_draft_${date}`);
+            Toast.show('Journal entry saved locally! 📝', 'success');
+            this.closeModal();
+            this.renderCalendar();
+            this.renderEntriesList();
+            this.renderDeckView();
+        }
+    }
+
+    async deleteEntry(id) {
+        if (!confirm('Are you sure you want to delete this journal entry?')) return;
+
+        try {
+            const response = await fetch(`http://localhost:3000/api/journals/${id}`, {
+                method: 'DELETE'
+            });
+            if (!response.ok) throw new Error('API delete failed');
+
+            this.journals = this.journals.filter(j => j.id !== id);
+            Storage.set('dsa_journals', this.journals);
+            Toast.show('Journal entry deleted.', 'info');
+            this.closeModal();
+            this.renderCalendar();
+            this.renderEntriesList();
+            this.renderDeckView();
+        } catch (e) {
+            console.warn('Backend delete failed, updating local storage:', e);
+            this.journals = this.journals.filter(j => j.id !== id);
+            Storage.set('dsa_journals', this.journals);
+            Toast.show('Journal entry deleted locally.', 'info');
+            this.closeModal();
+            this.renderCalendar();
+            this.renderEntriesList();
+            this.renderDeckView();
+        }
+    }
+
+    switchView(mode) {
+        this.activeView = mode;
+        const gridView = document.getElementById('journal-grid-view');
+        const deckView = document.getElementById('journal-deck-view');
+
+        if (mode === 'grid') {
+            if (gridView) gridView.classList.remove('hidden');
+            if (deckView) deckView.classList.add('hidden');
+            if (this.btnViewGrid) this.btnViewGrid.classList.add('active');
+            if (this.btnViewDeck) this.btnViewDeck.classList.remove('active');
+        } else {
+            if (gridView) gridView.classList.add('hidden');
+            if (deckView) deckView.classList.remove('hidden');
+            if (this.btnViewGrid) this.btnViewGrid.classList.remove('active');
+            if (this.btnViewDeck) this.btnViewDeck.classList.add('active');
+            this.renderDeckView();
+        }
+    }
+
+    renderDeckView() {
+        if (!this.deckTrack || !this.deckCounterBadge || !this.deckPaginationBar) return;
+
+        const daysInMonth = new Date(this.currentYear, this.currentMonth + 1, 0).getDate();
+        const todayStr = this.getTodayDateStr();
+
+        const journalMap = {};
+        (this.journals || []).forEach(j => {
+            if (j.date) {
+                if (!journalMap[j.date]) journalMap[j.date] = [];
+                journalMap[j.date].push(j);
+            }
+        });
+
+        let allCards = [];
+        const monthNames = [
+            'January', 'February', 'March', 'April', 'May', 'June',
+            'July', 'August', 'September', 'October', 'November', 'December'
+        ];
+        const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+        for (let day = 1; day <= daysInMonth; day++) {
+            const dateStr = `${this.currentYear}-${String(this.currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            const dayObj = new Date(this.currentYear, this.currentMonth, day);
+            const entries = journalMap[dateStr] || [];
+            allCards.push({
+                day,
+                dateStr,
+                dayObj,
+                entries,
+                isToday: dateStr === todayStr
+            });
+        }
+
+        if (this.deckFilter === 'entries') {
+            allCards = allCards.filter(c => c.entries.length > 0);
+        }
+
+        this.deckCards = allCards;
+
+        if (allCards.length === 0) {
+            this.deckTrack.innerHTML = '<div class="card-empty-prompt"><span class="empty-icon">📭</span><p>No entries found for this month.</p></div>';
+            this.deckCounterBadge.textContent = '0 cards';
+            this.deckPaginationBar.innerHTML = '';
+            this.updateAmbientGlow(null);
+            return;
+        }
+
+        if (this.deckIndex >= allCards.length) this.deckIndex = allCards.length - 1;
+        if (this.deckIndex < 0) this.deckIndex = 0;
+
+        const todayIdx = allCards.findIndex(c => c.isToday);
+        if (todayIdx >= 0 && this.deckIndex === 0 && !this._deckUserNavigated) {
+            this.deckIndex = todayIdx;
+        }
+
+        this.deckScrollTarget = this.deckIndex;
+        this.deckScrollCurrent = this.deckIndex;
+
+        const currentActiveCard = allCards[this.deckIndex];
+        this.updateAmbientGlow(currentActiveCard);
+
+        const palettes = [
+            { bg: '#facc15', ink: '#1c1917', muted: '#44403c', accent: '#dc2626', icon: '🥨' },
+            { bg: '#ec4899', ink: '#ffffff', muted: '#fbcfe8', accent: '#fef08a', icon: '🥧' },
+            { bg: '#451a03', ink: '#fef08a', muted: '#f59e0b', accent: '#d97706', icon: '🧁' },
+            { bg: '#06b6d4', ink: '#0f172a', muted: '#1e293b', accent: '#ffffff', icon: '🥪' },
+            { bg: '#10b981', ink: '#064e3b', muted: '#047857', accent: '#fef08a', icon: '🍃' },
+            { bg: '#8b5cf6', ink: '#ffffff', muted: '#ddd6fe', accent: '#facc15', icon: '🔮' },
+            { bg: '#f97316', ink: '#ffffff', muted: '#ffedd5', accent: '#fef08a', icon: '🔥' }
+        ];
+
+        let cardsHTML = '';
+        allCards.forEach((card, i) => {
+            const isActive = i === this.deckIndex;
+            const p = palettes[card.day % palettes.length];
+            const dayOfWeek = dayNames[card.dayObj.getDay()];
+            const monthName = monthNames[this.currentMonth];
+            const hasEntry = card.entries.length > 0;
+            const latest = hasEntry ? card.entries[0] : null;
+
+            const dateHeaderTitle = `${dayOfWeek.substring(0, 3)}, ${monthName.substring(0, 3)} ${card.day}`;
+
+            let statusTag = '';
+            if (card.isToday) {
+                statusTag = '<span class="card-status-pill is-today">TODAY</span>';
+            } else if (hasEntry) {
+                statusTag = '<span class="card-status-pill">WRITTEN</span>';
+            } else {
+                statusTag = '<span class="card-status-pill">EMPTY</span>';
+            }
+
+            let entryTitle = hasEntry ? (latest.title || 'Journal Reflection') : 'Daily Scratchpad Reflection';
+            let snippetText = hasEntry ? (latest.content || '') : 'No journal entry recorded for this date yet. Tap to record your thoughts & progress...';
+            let wordCount = hasEntry ? (latest.content ? latest.content.trim().split(/\s+/).length : 0) : 0;
+            let wordCountStr = hasEntry ? `${wordCount} ${wordCount === 1 ? 'word' : 'words'}` : 'Empty entry';
+
+            cardsHTML += `
+                <article class="journal-deck-card ${isActive ? 'is-active' : ''}" 
+                         data-deck-index="${i}" 
+                         data-date="${card.dateStr}"
+                         style="background: ${p.bg}; color: ${p.ink};">
+                    <div class="deck-card-topbar">
+                        <div class="deck-card-date">
+                            <span class="date-icon">${p.icon}</span>
+                            <span class="date-str">${dateHeaderTitle}</span>
+                        </div>
+                        ${statusTag}
+                    </div>
+
+                    <div class="deck-card-body clickable-card-body" data-action="open-modal" data-date="${card.dateStr}">
+                        <h3 class="deck-card-title" style="color: ${p.ink}">${this.escapeHTML(entryTitle)}</h3>
+                        <p class="deck-card-snippet" style="color: ${p.muted}">${this.escapeHTML(snippetText)}</p>
+                    </div>
+
+                    <div class="deck-card-footer" style="border-color: rgba(255,255,255,0.2)">
+                        <span class="deck-card-meta" style="color: ${p.muted}">✍️ ${wordCountStr}</span>
+                        <button type="button" class="card-action-btn write-note-btn" data-action="open-modal" data-date="${card.dateStr}" style="background: ${p.ink}; color: ${p.bg}">
+                            ${hasEntry ? '✏️ Edit Note' : '➕ Write Note'}
+                        </button>
+                    </div>
+                </article>
+            `;
+        });
+
+        this.deckTrack.innerHTML = cardsHTML;
+
+        // Bind Deck Card Click Listeners (Card Body & Write Note Button)
+        this.deckTrack.querySelectorAll('[data-action="open-modal"]').forEach(el => {
+            el.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const targetDate = el.getAttribute('data-date');
+                if (targetDate) {
+                    this.openModalForDate(targetDate);
+                }
+            });
+        });
+
+        this.updateDeckCounterAndPagination();
+        this.startDeckAnimationLoop();
+    }
+
+    navigateDeck(direction) {
+        if (!this.deckCards || this.deckCards.length === 0) return;
+        const newIdx = Math.max(0, Math.min(this.deckCards.length - 1, this.deckIndex + direction));
+        if (newIdx !== this.deckIndex) {
+            this.deckIndex = newIdx;
+            this.deckScrollTarget = newIdx;
+            this._deckUserNavigated = true;
+            this.updateDeckCounterAndPagination();
+        }
+    }
+
+    updateDeckCounterAndPagination() {
+        if (!this.deckCards || this.deckCards.length === 0) return;
+        const currentIdx = Math.max(0, Math.min(this.deckCards.length - 1, Math.round(this.deckScrollCurrent)));
+
+        if (this.deckCounterBadge) {
+            this.deckCounterBadge.textContent = `${currentIdx + 1} of ${this.deckCards.length}`;
+        }
+
+        if (this.deckPaginationBar) {
+            let dotsHTML = '';
+            const total = this.deckCards.length;
+            for (let i = 0; i < total; i++) {
+                const isActive = i === currentIdx;
+                dotsHTML += `<button type="button" class="deck-page-dot ${isActive ? 'active' : ''}" data-index="${i}" title="Card ${i + 1}"></button>`;
+            }
+            this.deckPaginationBar.innerHTML = dotsHTML;
+
+            this.deckPaginationBar.querySelectorAll('.deck-page-dot').forEach(dot => {
+                dot.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const idx = parseInt(dot.getAttribute('data-index'), 10);
+                    if (!isNaN(idx)) {
+                        this.deckIndex = idx;
+                        this.deckScrollTarget = idx;
+                        this._deckUserNavigated = true;
+                        this.updateDeckCounterAndPagination();
+                    }
+                });
+            });
+        }
+
+        if (this.deckCards[currentIdx]) {
+            this.updateAmbientGlow(this.deckCards[currentIdx]);
+        }
+    }
+
+    updateAmbientGlow(card) {
+        if (!this.deckAmbientGlow) return;
+        if (!card) {
+            this.deckAmbientGlow.style.opacity = '0';
+            return;
+        }
+        const palettes = [
+            '#facc15', '#ec4899', '#f59e0b', '#06b6d4', '#10b981', '#8b5cf6', '#f97316'
+        ];
+        const color = palettes[card.day % palettes.length];
+        this.deckAmbientGlow.style.background = `radial-gradient(circle at center, ${color}33 0%, transparent 70%)`;
+        this.deckAmbientGlow.style.opacity = '1';
+    }
+
+    startDeckAnimationLoop() {
+        if (this._deckLoopRunning) return;
+        this._deckLoopRunning = true;
+
+        const step = () => {
+            if (this.activeView === 'deck' && this.deckCards && this.deckCards.length > 0) {
+                const scrollDiff = this.deckScrollTarget - this.deckScrollCurrent;
+                if (Math.abs(scrollDiff) > 0.0001) {
+                    this.deckScrollCurrent += scrollDiff * 0.14;
+                } else {
+                    this.deckScrollCurrent = this.deckScrollTarget;
+                }
+
+                const tiltDiffX = this.deckTiltTargetX - this.deckTiltCurrentX;
+                const tiltDiffY = this.deckTiltTargetY - this.deckTiltCurrentY;
+                if (Math.abs(tiltDiffX) > 0.01 || Math.abs(tiltDiffY) > 0.01) {
+                    this.deckTiltCurrentX += tiltDiffX * 0.12;
+                    this.deckTiltCurrentY += tiltDiffY * 0.12;
+                } else {
+                    this.deckTiltCurrentX = this.deckTiltTargetX;
+                    this.deckTiltCurrentY = this.deckTiltTargetY;
+                }
+
+                this.updateDeckTransformsRealtime();
+            }
+            requestAnimationFrame(step);
+        };
+        requestAnimationFrame(step);
+    }
+
+    updateDeckTransformsRealtime() {
+        if (!this.deckTrack) return;
+        const cardElements = this.deckTrack.querySelectorAll('.journal-deck-card');
+
+        cardElements.forEach(cardEl => {
+            const idx = parseInt(cardEl.getAttribute('data-deck-index'), 10);
+            if (isNaN(idx)) return;
+
+            const offset = idx - this.deckScrollCurrent;
+            const absOffset = Math.abs(offset);
+            const dir = offset > 0 ? 1 : -1;
+
+            const translateX = offset * 135;
+            const translateZ = -absOffset * 85;
+            const rotateYCurve = -dir * Math.min(18, absOffset * 9);
+            const scale = Math.max(0.7, 1 - absOffset * 0.08);
+            const opacity = Math.max(0, 1 - absOffset * 0.25);
+
+            const rotX = (absOffset < 0.5) ? this.deckTiltCurrentX : 0;
+            const rotY = (absOffset < 0.5) ? (rotateYCurve + this.deckTiltCurrentY) : rotateYCurve;
+
+            cardEl.style.transform = `translate(-50%, -50%) translateX(${translateX}px) translateZ(${translateZ}px) rotateX(${rotX}deg) rotateY(${rotY}deg) scale(${scale})`;
+            cardEl.style.opacity = opacity.toFixed(3);
+
+            const isCardActive = absOffset < 0.5;
+            const zIndex = isCardActive ? 1000 : Math.round(500 - absOffset * 20);
+            cardEl.style.zIndex = zIndex;
+
+            if (isCardActive) {
+                cardEl.classList.add('is-active');
+            } else {
+                cardEl.classList.remove('is-active');
+            }
+        });
+    }
+
+    escapeHTML(str) {
+        if (!str) return '';
+        return str
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     Toast.init();
     window.dsaApp = new App();

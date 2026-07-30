@@ -1,378 +1,673 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="DSA Focus Dashboard — Maximize your productivity while solving data structures and algorithms problems.">
-    <title>DSA Focus Dashboard</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700;12..96,800&family=Hanken+Grotesk:wght@400;500;600;700&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="DSA Focus Dashboard — Maximize your productivity while solving data structures and algorithms problems.">
+<title>DSA Focus Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700;12..96,800&family=Hanken+Grotesk:wght@400;500;600;700&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 </head>
 <body>
-    <!-- Toast Notification Container -->
-    <div id="toast-container" aria-live="polite"></div>
+<!-- Toast Notification Container -->
+<div id="toast-container" aria-live="polite"></div>
 
-    <!-- Top Bar -->
-    <header class="topbar">
-        <div class="wrap header-wrap">
-            <div class="header-left">
-                <div class="mark">DSA<span>·</span>FOCUS</div>
-                <nav class="nav-tabs">
-                    <button class="tab-btn active" id="tab-dashboard">Dashboard</button>
-                    <button class="tab-btn" id="tab-log">Spreadsheet Log</button>
-                    <button class="tab-btn" id="btn-theme-toggle" title="Toggle dark/light theme">🌙 Dark Mode</button>
-                </nav>
-            </div>
-            
-            <div class="progress-container">
-                <div class="progress-info">
-                    <span>Daily Goal <button class="btn-edit-goal" id="btn-edit-goal" title="Set daily goal" aria-label="Set daily goal">✏️</button></span>
-                    <span id="progress-text">0/10</span>
-                </div>
-                <div class="progress-bar-bg">
-                    <div class="progress-bar-fill" id="daily-progress"></div>
-                </div>
-            </div>
-        </div>
-    </header>
+<!-- Top Bar -->
+<header class="topbar">
+<div class="wrap header-wrap">
+<div class="header-left">
+<div class="mark">DSA<span>·</span>FOCUS</div>
+<nav class="nav-tabs">
+<button class="tab-btn active" id="tab-dashboard">Dashboard</button>
+<button class="tab-btn" id="tab-log">Log</button>
+<button class="tab-btn" id="tab-journal">Journal</button>
+<button class="tab-btn" id="btn-theme-toggle" title="Toggle dark/light theme">🌙 Dark Mode</button>
+</nav>
+</div>
 
-    <!-- Main Dashboard View -->
-    <main class="wrap dashboard" id="dashboard-view">
-        <!-- Left Panel: Problem Form -->
-        <aside class="panel left-panel">
-            <div class="card problem-form" id="problem-form-card">
-                <div class="eyebrow">Workspace</div>
-                <h2>Current Problem</h2>
-                <form id="problem-form" autocomplete="off">
-                    <div class="form-group">
-                        <label for="p-name">Problem Name</label>
-                        <input type="text" id="p-name" placeholder="e.g. Two Sum" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="p-url">Problem Link (URL)</label>
-                        <input type="text" id="p-url" placeholder="e.g. https://leetcode.com/problems/...">
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="p-platform">Platform</label>
-                            <input type="text" id="p-platform" placeholder="LeetCode, etc." required>
-                        </div>
-                        <div class="form-group">
-                            <label for="p-difficulty">Difficulty</label>
-                            <select id="p-difficulty">
-                                <option value="Easy">Easy</option>
-                                <option value="Medium" selected>Medium</option>
-                                <option value="Hard">Hard</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label for="p-topic">Topic</label>
-                        <input type="text" id="p-topic" placeholder="e.g. Binary Search, DP">
-                    </div>
-                    <div class="form-group">
-                        <label for="p-notes">Notes</label>
-                        <textarea id="p-notes" placeholder="Approaches, complexities, edge cases..."></textarea>
-                    </div>
-                    <div class="form-checkboxes">
-                        <label class="checkbox-label" for="p-hint">
-                            <input type="checkbox" id="p-hint">
-                            Used Hint?
-                        </label>
-                        <label class="checkbox-label" for="p-independent">
-                            <input type="checkbox" id="p-independent" checked>
-                            Solved Independently?
-                        </label>
-                        <label class="checkbox-label" for="p-revision">
-                            <input type="checkbox" id="p-revision">
-                            Needs Revision?
-                        </label>
-                    </div>
-                    <div class="form-actions">
-                        <button type="submit" class="btn primary" id="btn-save-problem">
-                            Save Problem
-                        </button>
-                        <button type="button" class="btn secondary" id="btn-clear-form">
-                            Clear
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </aside>
+<div class="progress-container">
+<div class="progress-info">
+<span>Daily Goal <button class="btn-edit-goal" id="btn-edit-goal" title="Set daily goal" aria-label="Set daily goal">✏️</button></span>
+<span id="progress-text">0/10</span>
+</div>
+<div class="progress-bar-bg">
+<div class="progress-bar-fill" id="daily-progress"></div>
+</div>
+</div>
+</div>
+</header>
 
-        <!-- Center Panel: Timer -->
-        <section class="panel center-panel">
-            <div class="card timer-card">
-                <div class="timer-header">
-                    <div>
-                        <div class="eyebrow" id="session-indicator">Focus Session</div>
-                        <h2>Timer</h2>
-                    </div>
-                    <label class="toggle-pomodoro" title="Auto-switch 20m Focus / 5m Break">
-                        <input type="checkbox" id="pomodoro-toggle">
-                        <span class="toggle-slider"></span>
-                        <span class="toggle-label">Pomodoro</span>
-                    </label>
-                </div>
-                
-                <div class="timer-display-container">
-                    <svg class="progress-ring" width="200" height="200" viewBox="0 0 200 200">
-                        <circle class="progress-ring__bg" stroke-width="5" fill="transparent" r="90" cx="100" cy="100"/>
-                        <circle class="progress-ring__circle" id="timer-ring" stroke-width="5" fill="transparent" r="90" cx="100" cy="100"/>
-                    </svg>
-                    <div class="time-text" id="countdown-display">20:00</div>
-                </div>
+<!-- Main Dashboard View -->
+<main class="wrap dashboard" id="dashboard-view">
+<!-- Left Panel: Problem Form -->
+<aside class="panel left-panel">
+<div class="card problem-form" id="problem-form-card">
+<div class="eyebrow">Workspace</div>
+<h2>Current Problem</h2>
+<form id="problem-form" autocomplete="off">
+<div class="form-group">
+<label for="p-name">Problem Name</label>
+<input type="text" id="p-name" placeholder="e.g. Two Sum" required>
+</div>
+<div class="form-group">
+<label for="p-url">Problem Link (URL)</label>
+<input type="text" id="p-url" placeholder="e.g. https://leetcode.com/problems/...">
+</div>
+<div class="form-row">
+<div class="form-group">
+<label for="p-platform">Platform</label>
+<input type="text" id="p-platform" placeholder="LeetCode, etc." required>
+</div>
+<div class="form-group">
+<label for="p-difficulty">Difficulty</label>
+<select id="p-difficulty">
+<option value="Easy">Easy</option>
+<option value="Medium" selected>Medium</option>
+<option value="Hard">Hard</option>
+</select>
+</div>
+</div>
+<div class="form-group">
+<label for="p-topic">Topic</label>
+<input type="text" id="p-topic" placeholder="e.g. Binary Search, DP">
+</div>
+<div class="form-group">
+<label for="p-notes">Notes</label>
+<textarea id="p-notes" placeholder="Approaches, complexities, edge cases..."></textarea>
+</div>
+<div class="form-checkboxes">
+<label class="checkbox-label" for="p-hint">
+<input type="checkbox" id="p-hint">
+Used Hint?
+</label>
+<label class="checkbox-label" for="p-independent">
+<input type="checkbox" id="p-independent" checked>
+Solved Independently?
+</label>
+<label class="checkbox-label" for="p-revision">
+<input type="checkbox" id="p-revision">
+Needs Revision?
+</label>
+</div>
+<div class="form-actions">
+<button type="submit" class="btn primary" id="btn-save-problem">
+Save Problem
+</button>
+<button type="button" class="btn secondary" id="btn-clear-form">
+Clear
+</button>
+</div>
+</form>
+</div>
+</aside>
 
-                <div class="timer-controls">
-                    <button class="btn icon-btn" id="btn-sub-5" title="Sub 5 minutes">−5m</button>
-                    <button class="btn primary large" id="btn-start-pause">Start</button>
-                    <button class="btn secondary large" id="btn-reset-timer">Reset</button>
-                    <button class="btn icon-btn" id="btn-add-5" title="Add 5 minutes">+5m</button>
-                </div>
-            </div>
+<!-- Center Panel: Timer -->
+<section class="panel center-panel">
+<div class="card timer-card">
+<div class="timer-header">
+<div>
+<div class="eyebrow" id="session-indicator">Focus Session</div>
+<h2>Timer</h2>
+</div>
+<label class="toggle-pomodoro" title="Auto-switch 20m Focus / 5m Break">
+<input type="checkbox" id="pomodoro-toggle">
+<span class="toggle-slider"></span>
+<span class="toggle-label">Pomodoro</span>
+</label>
+</div>
 
-            <!-- Scratchpad Card -->
-            <div class="card scratchpad-card">
-                <div class="scratchpad-header">
-                    <div class="eyebrow scratchpad-label">Scratch Board</div>
-                    <div class="scratchpad-actions">
-                        <button class="btn-scratch-tool" id="btn-scratch-clear" type="button" title="Clear board" aria-label="Clear scratch board">🧹</button>
-                    </div>
-                </div>
-                
-                <div class="scratchpad-body">
-                    <div id="scratchpad-editor" class="scratchpad-editor" contenteditable="true" role="textbox" aria-multiline="true" placeholder="Start typing here…"></div>
-                    
-                    <!-- Floating Slash Menu -->
-                    <div id="scratchpad-slash-menu" class="slash-menu hidden">
-                        <div class="slash-menu-header">Slash Commands</div>
-                        <div class="slash-item" data-cmd="todo">
-                            <span class="icon">☑️</span>
-                            <div class="details">
-                                <span class="name">To-do List</span>
-                                <span class="desc">Create a checkbox task</span>
-                            </div>
-                        </div>
-                        <div class="slash-item" data-cmd="bullet">
-                            <span class="icon">•</span>
-                            <div class="details">
-                                <span class="name">Bullet List</span>
-                                <span class="desc">Create a bullet point</span>
-                            </div>
-                        </div>
-                        <div class="slash-item" data-cmd="h1">
-                            <span class="icon">H1</span>
-                            <div class="details">
-                                <span class="name">Heading 1</span>
-                                <span class="desc">Large heading</span>
-                            </div>
-                        </div>
-                        <div class="slash-item" data-cmd="h2">
-                            <span class="icon">H2</span>
-                            <div class="details">
-                                <span class="name">Heading 2</span>
-                                <span class="desc">Medium heading</span>
-                            </div>
-                        </div>
-                        <div class="slash-item" data-cmd="divider">
-                            <span class="icon">―</span>
-                            <div class="details">
-                                <span class="name">Divider</span>
-                                <span class="desc">Horizontal line</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="scratchpad-footer">
-                    <span><code>/</code> blocks · <code>[]</code> to-do · <code>-</code> bullet · <code>#</code> heading</span>
-                </div>
-            </div>
-        </section>
+<div class="timer-display-container">
+<svg class="progress-ring" width="200" height="200" viewBox="0 0 200 200">
+<circle class="progress-ring__bg" stroke-width="5" fill="transparent" r="90" cx="100" cy="100"/>
+<circle class="progress-ring__circle" id="timer-ring" stroke-width="5" fill="transparent" r="90" cx="100" cy="100"/>
+</svg>
+<div class="time-text" id="countdown-display">20:00</div>
+</div>
 
-        <!-- Right Panel: Performance stats only -->
-        <aside class="panel right-panel">
-            <div class="card stats-grid-card">
-                <div class="eyebrow">Statistics</div>
-                <h2>Daily Performance</h2>
-                
-                <!-- DSA Progress Widget -->
-                <div class="dsa-progress-box">
-                    <div class="dsa-progress-header">
-                        <span class="dsa-progress-badge">DSA Progress</span>
-                    </div>
-                    <div class="dsa-progress-body">
-                        <div class="dsa-ring-wrapper">
-                            <svg class="dsa-ring-svg" width="110" height="110" viewBox="0 0 100 100">
-                                <circle class="dsa-ring-bg" stroke-width="8" fill="transparent" r="40" cx="50" cy="50"/>
-                                <circle class="dsa-ring-easy" id="dsa-arc-easy" stroke-width="8" fill="transparent" r="40" cx="50" cy="50"/>
-                                <circle class="dsa-ring-medium" id="dsa-arc-medium" stroke-width="8" fill="transparent" r="40" cx="50" cy="50"/>
-                                <circle class="dsa-ring-hard" id="dsa-arc-hard" stroke-width="8" fill="transparent" r="40" cx="50" cy="50"/>
-                            </svg>
-                            <div class="dsa-ring-center">
-                                <span class="dsa-total-num" id="stat-total">0</span>
-                                <span class="dsa-total-line"></span>
-                                <span class="dsa-total-label">Solved</span>
-                            </div>
-                        </div>
-                        <div class="dsa-diff-list">
-                            <div class="diff-item">
-                                <div class="diff-left">
-                                    <span class="diff-dot easy"></span>
-                                    <span class="diff-name">Easy</span>
-                                </div>
-                                <span class="diff-val" id="stat-easy">0</span>
-                            </div>
-                            <div class="diff-item">
-                                <div class="diff-left">
-                                    <span class="diff-dot medium"></span>
-                                    <span class="diff-name">Medium</span>
-                                </div>
-                                <span class="diff-val" id="stat-medium">0</span>
-                            </div>
-                            <div class="diff-item">
-                                <div class="diff-left">
-                                    <span class="diff-dot hard"></span>
-                                    <span class="diff-name">Hard</span>
-                                </div>
-                                <span class="diff-val" id="stat-hard">0</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+<div class="timer-controls">
+<button class="btn icon-btn" id="btn-sub-5" title="Sub 5 minutes">−5m</button>
+<button class="btn primary large" id="btn-start-pause">Start</button>
+<button class="btn secondary large" id="btn-reset-timer">Reset</button>
+<button class="btn icon-btn" id="btn-add-5" title="Add 5 minutes">+5m</button>
+</div>
+</div>
 
-                <div class="stats-grid grid-4">
-                    <div class="stat-box" data-accent="sage">
-                        <div class="stat-value" id="stat-today">0</div>
-                        <div class="stat-label">Solved Today</div>
-                    </div>
-                    <div class="stat-box" data-accent="blue">
-                        <div class="stat-value" id="stat-time">0m</div>
-                        <div class="stat-label">Today's Focus</div>
-                    </div>
-                    <div class="stat-box" data-accent="orange">
-                        <div class="stat-value" id="stat-avg">0m</div>
-                        <div class="stat-label">Avg Time</div>
-                    </div>
-                    <div class="stat-box" data-accent="orange-deep">
-                        <div class="stat-value streak" id="stat-streak">0</div>
-                        <div class="stat-label">Streak (days)</div>
-                    </div>
-                </div>
-            </div>
-        </aside>
-    </main>
+<!-- Scratchpad Card -->
+<div class="card scratchpad-card">
+<div class="scratchpad-header">
+<div class="eyebrow scratchpad-label">Scratch Board</div>
+<div class="scratchpad-actions">
+<button class="btn-scratch-tool" id="btn-scratch-clear" type="button" title="Clear board" aria-label="Clear scratch board">🧹</button>
+</div>
+</div>
 
-    <!-- Spreadsheet Log View (Separate Page Tab) -->
-    <section class="wrap log-section hidden" id="log-view">
-        <div class="card spreadsheet-card">
-            <div class="spreadsheet-header">
-                <div>
-                    <div class="eyebrow">Tracker</div>
-                    <h2>Solved Problem Spreadsheet</h2>
-                </div>
-                <div class="spreadsheet-actions">
-                    <button class="btn secondary" id="btn-export-csv">💾 Export CSV</button>
-                </div>
-            </div>
+<div class="scratchpad-body">
+<div id="scratchpad-editor" class="scratchpad-editor" contenteditable="true" role="textbox" aria-multiline="true" placeholder="Start typing here…"></div>
 
-            <!-- Filters -->
-            <div class="spreadsheet-filters">
-                <div class="filter-group search-group">
-                    <label for="filter-search">Search</label>
-                    <input type="text" id="filter-search" placeholder="Search by name, platform, topic...">
-                </div>
-                <div class="filter-group">
-                    <label for="filter-difficulty">Difficulty</label>
-                    <select id="filter-difficulty">
-                        <option value="All">All Difficulties</option>
-                        <option value="Easy">Easy</option>
-                        <option value="Medium">Medium</option>
-                        <option value="Hard">Hard</option>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <label for="filter-revision">Revision Required?</label>
-                    <select id="filter-revision">
-                        <option value="All">All</option>
-                        <option value="Yes">Needs Revision</option>
-                        <option value="No">No Revision</option>
-                    </select>
-                </div>
-            </div>
+<!-- Floating Slash Menu -->
+<div id="scratchpad-slash-menu" class="slash-menu hidden">
+<div class="slash-menu-header">Slash Commands</div>
+<div class="slash-item" data-cmd="todo">
+<span class="icon">☑️</span>
+<div class="details">
+<span class="name">To-do List</span>
+<span class="desc">Create a checkbox task</span>
+</div>
+</div>
+<div class="slash-item" data-cmd="bullet">
+<span class="icon">•</span>
+<div class="details">
+<span class="name">Bullet List</span>
+<span class="desc">Create a bullet point</span>
+</div>
+</div>
+<div class="slash-item" data-cmd="h1">
+<span class="icon">H1</span>
+<div class="details">
+<span class="name">Heading 1</span>
+<span class="desc">Large heading</span>
+</div>
+</div>
+<div class="slash-item" data-cmd="h2">
+<span class="icon">H2</span>
+<div class="details">
+<span class="name">Heading 2</span>
+<span class="desc">Medium heading</span>
+</div>
+</div>
+<div class="slash-item" data-cmd="divider">
+<span class="icon">―</span>
+<div class="details">
+<span class="name">Divider</span>
+<span class="desc">Horizontal line</span>
+</div>
+</div>
+</div>
+</div>
 
-            <!-- Spreadsheet Table Container -->
-            <div class="table-container">
-                <table class="spreadsheet-table">
-                    <thead>
-                        <tr>
-                            <th style="width: 110px;">Date</th>
-                            <th>Problem Name</th>
-                            <th style="width: 100px;">Platform</th>
-                            <th style="width: 100px;">Difficulty</th>
-                            <th>Topic</th>
-                            <th style="width: 110px;">Time Spent</th>
-                            <th style="width: 80px;">Hint?</th>
-                            <th style="width: 80px;">Solo?</th>
-                            <th style="width: 90px;">Revise?</th>
-                            <th>Notes</th>
-                            <th style="width: 130px;">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="spreadsheet-body">
-                        <!-- Rows injected dynamically -->
-                    </tbody>
-                </table>
-                <p class="empty-state" id="spreadsheet-empty">No matching problems found.</p>
-            </div>
-        </div>
-    </section>
+<div class="scratchpad-footer">
+<span><code>/</code> blocks · <code>[]</code> to-do · <code>-</code> bullet · <code>#</code> heading</span>
+</div>
+</div>
+</section>
 
-    <!-- Footer / Keyboard Shortcuts -->
-    <footer>
-        <div class="wrap footer-wrap">
-            <div>
-                <p class="big">DSA Focus Dashboard</p>
-                <p>Designed for distraction-free, highly analytical practice sessions. Store data locally in your browser.</p>
-            </div>
-            <div class="shortcuts-bar">
-                <div class="shortcut"><kbd>Space</kbd> Start/Pause</div>
-                <div class="shortcut"><kbd>R</kbd> Reset</div>
-                <div class="shortcut"><kbd>N</kbd> New Problem</div>
-                <div class="shortcut"><kbd>Ctrl</kbd>+<kbd>S</kbd> Save</div>
-            </div>
-        </div>
-    </footer>
+<!-- Right Panel: Performance stats only -->
+<aside class="panel right-panel">
+<div class="card stats-grid-card">
+<div class="eyebrow">Statistics</div>
+<h2>Daily Performance</h2>
 
-    <!-- Notification Modal -->
-    <div id="notification-modal" class="modal hidden" role="dialog" aria-modal="true">
-        <div class="modal-content">
-            <div class="modal-icon">⏰</div>
-            <h2>Time's Up!</h2>
-            <p id="motivational-quote">"Progress beats perfection."</p>
-            <p class="sub-text">Either take a hint or move on to the next step.</p>
-            <button class="btn primary" id="btn-close-modal">Continue</button>
-        </div>
-    </div>
+<!-- DSA Progress Widget -->
+<div class="dsa-progress-box">
+<div class="dsa-progress-header">
+<span class="dsa-progress-badge">DSA Progress</span>
+</div>
+<div class="dsa-progress-body">
+<div class="dsa-ring-wrapper">
+<svg class="dsa-ring-svg" width="110" height="110" viewBox="0 0 100 100">
+<circle class="dsa-ring-bg" stroke-width="8" fill="transparent" r="40" cx="50" cy="50"/>
+<circle class="dsa-ring-easy" id="dsa-arc-easy" stroke-width="8" fill="transparent" r="40" cx="50" cy="50"/>
+<circle class="dsa-ring-medium" id="dsa-arc-medium" stroke-width="8" fill="transparent" r="40" cx="50" cy="50"/>
+<circle class="dsa-ring-hard" id="dsa-arc-hard" stroke-width="8" fill="transparent" r="40" cx="50" cy="50"/>
+</svg>
+<div class="dsa-ring-center">
+<span class="dsa-total-num" id="stat-total">0</span>
+<span class="dsa-total-line"></span>
+<span class="dsa-total-label">Solved</span>
+</div>
+</div>
+<div class="dsa-diff-list">
+<div class="diff-item">
+<div class="diff-left">
+<span class="diff-dot easy"></span>
+<span class="diff-name">Easy</span>
+</div>
+<span class="diff-val" id="stat-easy">0</span>
+</div>
+<div class="diff-item">
+<div class="diff-left">
+<span class="diff-dot medium"></span>
+<span class="diff-name">Medium</span>
+</div>
+<span class="diff-val" id="stat-medium">0</span>
+</div>
+<div class="diff-item">
+<div class="diff-left">
+<span class="diff-dot hard"></span>
+<span class="diff-name">Hard</span>
+</div>
+<span class="diff-val" id="stat-hard">0</span>
+</div>
+</div>
+</div>
+</div>
 
-    <!-- Notes Sidebar Drawer -->
-    <div id="notes-sidebar-backdrop" class="sidebar-backdrop hidden"></div>
-    <div id="notes-sidebar" class="sidebar-drawer hidden">
-        <div class="sidebar-header">
-            <div>
-                <div class="eyebrow notes-sidebar-eyebrow">Problem Notes</div>
-                <h3 id="notes-sidebar-title" class="notes-sidebar-title">Problem Name</h3>
-            </div>
-            <button id="notes-sidebar-close" class="btn-close-sidebar" aria-label="Close notes">✕</button>
-        </div>
-        <hr class="scratch-divider">
-        <div class="sidebar-body">
-            <div id="notes-sidebar-content" class="notes-sidebar-content"></div>
-        </div>
-    </div>
+<div class="stats-grid grid-4">
+<div class="stat-box" data-accent="sage">
+<div class="stat-value" id="stat-today">0</div>
+<div class="stat-label">Solved Today</div>
+</div>
+<div class="stat-box" data-accent="blue">
+<div class="stat-value" id="stat-time">0m</div>
+<div class="stat-label">Today's Focus</div>
+</div>
+<div class="stat-box" data-accent="orange">
+<div class="stat-value" id="stat-avg">0m</div>
+<div class="stat-label">Avg Time</div>
+</div>
+<div class="stat-box" data-accent="orange-deep">
+<div class="stat-value streak" id="stat-streak">0</div>
+<div class="stat-label">Streak (days)</div>
+</div>
+</div>
+</div>
+</aside>
+</main>
 
-    <script src="script.js"></script>
+<!-- Pace & Completion Projection Card (Positioned below main dashboard view) -->
+<section class="wrap pace-section" id="pace-section">
+<div class="card pace-card" id="pace-projection-card">
+<div class="pace-card-header">
+<div class="pace-header-title">
+<div class="eyebrow">DSA Sheet Tracker</div>
+<h2>Pace & Completion Projection</h2>
+</div>
+
+<div class="pace-header-controls">
+<div class="pace-window-toggle" role="group" aria-label="Velocity Calculation Window">
+<button type="button" class="pace-toggle-btn active" id="btn-pace-7d">7 Days</button>
+<button type="button" class="pace-toggle-btn" id="btn-pace-14d">14 Days</button>
+</div>
+
+<label class="checkbox-label pace-weighted-label" for="chk-pace-weighted" title="Weighted mode factors in Easy (1.0x), Medium (1.5x), Hard (2.5x) difficulty weights">
+<input type="checkbox" id="chk-pace-weighted">
+Smart Weighted Pace
+</label>
+</div>
+</div>
+
+<!-- Target Progress Line -->
+<div class="pace-progress-container">
+<div class="pace-progress-info">
+<span>
+Target Progress: 
+<span id="pace-solved-display"><strong id="pace-solved-count">0</strong></span>
+<button type="button" class="btn-edit-goal" id="btn-edit-solved-count" title="Set baseline total solved problems count" aria-label="Set baseline total solved problems count">✏️</button>
+/ 
+<span id="pace-target-display"><strong id="pace-target-count">474</strong></span>
+<button type="button" class="btn-edit-goal" id="btn-edit-target-total" title="Set target total problems goal" aria-label="Set target total problems goal">✏️</button>
+problems solved 
+(<span id="pace-percent">0%</span>)
+</span>
+<span class="pace-remaining-badge" id="pace-remaining-badge">474 remaining</span>
+</div>
+<div class="progress-bar-bg pace-bar-bg">
+<div class="progress-bar-fill pace-bar-fill" id="pace-progress-fill"></div>
+</div>
+</div>
+
+<!-- Pace & Projection Metrics Grid -->
+<div class="pace-metrics-grid">
+<div class="pace-metric-box">
+<div class="pace-metric-icon">⚡</div>
+<div class="pace-metric-body">
+<div class="pace-metric-val" id="pace-velocity-val">0.0 / week</div>
+<div class="pace-metric-label" id="pace-velocity-label">0.0 / day (7d window)</div>
+</div>
+</div>
+
+<div class="pace-metric-box">
+<div class="pace-metric-icon">⌛</div>
+<div class="pace-metric-body">
+<div class="pace-metric-val" id="pace-time-val">~0.0 weeks</div>
+<div class="pace-metric-label" id="pace-time-label">0 days remaining</div>
+</div>
+</div>
+
+<div class="pace-metric-box">
+<div class="pace-metric-icon">📅</div>
+<div class="pace-metric-body">
+<div class="pace-metric-val" id="pace-date-val">N/A</div>
+<div class="pace-metric-label" id="pace-date-label">Est. Completion Date</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+
+<!-- Spreadsheet Log View (Separate Page Tab) -->
+<section class="wrap log-section hidden" id="log-view">
+<div class="card spreadsheet-card">
+<div class="spreadsheet-header">
+<div>
+<div class="eyebrow">Tracker</div>
+<h2>Solved Problem Spreadsheet</h2>
+</div>
+<div class="spreadsheet-actions">
+<input type="file" id="csv-file-input" accept=".csv" class="hidden">
+<button class="btn secondary" id="btn-import-csv">📥 Upload CSV</button>
+<button class="btn secondary" id="btn-export-csv">💾 Download CSV</button>
+</div>
+</div>
+
+<!-- Filters -->
+<div class="spreadsheet-filters">
+<div class="filter-group search-group">
+<label for="filter-search">Search</label>
+<input type="text" id="filter-search" placeholder="Search by name, platform, topic...">
+</div>
+<div class="filter-group">
+<label for="filter-difficulty">Difficulty</label>
+<select id="filter-difficulty">
+<option value="All">All Difficulties</option>
+<option value="Easy">Easy</option>
+<option value="Medium">Medium</option>
+<option value="Hard">Hard</option>
+</select>
+</div>
+<div class="filter-group">
+<label for="filter-revision">Revision Required?</label>
+<select id="filter-revision">
+<option value="All">All</option>
+<option value="Yes">Needs Revision</option>
+<option value="No">No Revision</option>
+</select>
+</div>
+</div>
+
+<!-- Spreadsheet Table Container -->
+<div class="table-container">
+<table class="spreadsheet-table">
+<thead>
+<tr>
+<th style="width: 110px;">Date</th>
+<th>Problem Name</th>
+<th style="width: 100px;">Platform</th>
+<th style="width: 100px;">Difficulty</th>
+<th>Topic</th>
+<th style="width: 110px;">Time Spent</th>
+<th style="width: 80px;">Hint?</th>
+<th style="width: 80px;">Solo?</th>
+<th style="width: 90px;">Revise?</th>
+<th>Notes</th>
+<th style="width: 130px;">Actions</th>
+</tr>
+</thead>
+<tbody id="spreadsheet-body">
+<!-- Rows injected dynamically -->
+</tbody>
+</table>
+<p class="empty-state" id="spreadsheet-empty">No matching problems found.</p>
+</div>
+</div>
+</section>
+
+<!-- Journal View (Separate Page Tab) -->
+<section class="wrap journal-section hidden" id="journal-view">
+<div class="card journal-header-card">
+<div class="journal-title-bar">
+<div>
+<div class="eyebrow">Personal Notepad & Reflection</div>
+<h2>Daily Journal & Scratchpad</h2>
+</div>
+<button type="button" class="btn primary journal-new-btn" id="btn-open-journal-modal" data-action="open-journal">
+<span class="btn-icon-symbol">✏️</span> What's on your mind?
+</button>
+</div>
+</div>
+
+<!-- Calendar View Card -->
+<div class="card journal-calendar-card">
+<div class="calendar-header-bar">
+<div class="calendar-title">
+<h3>Calendar View</h3>
+<p class="sub-text">Click on any date to write or view thoughts for that day</p>
+</div>
+<div class="calendar-controls">
+<button class="btn btn-icon secondary" id="btn-prev-month" title="Previous Month" aria-label="Previous Month">‹</button>
+<div class="calendar-month-display" id="calendar-month-year">July 2026</div>
+<button class="btn btn-icon secondary" id="btn-next-month" title="Next Month" aria-label="Next Month">›</button>
+<button class="btn secondary sm" id="btn-calendar-today">Today</button>
+</div>
+</div>
+
+<div class="calendar-weekdays">
+<span>Sun</span>
+<span>Mon</span>
+<span>Tue</span>
+<span>Wed</span>
+<span>Thu</span>
+<span>Fri</span>
+<span>Sat</span>
+</div>
+
+<div class="calendar-grid" id="calendar-grid">
+<!-- Days generated dynamically in JS -->
+</div>
+</div>
+
+<!-- Journal Entries List -->
+<div class="card journal-entries-card">
+<div class="entries-header">
+<h3>Journal Timeline</h3>
+<span class="badge-count" id="journal-entries-count">0 entries</span>
+</div>
+<div class="journal-entries-list" id="journal-entries-list">
+<!-- Entries populated dynamically -->
+</div>
+<p class="empty-state hidden" id="journal-empty">No journal entries yet for this month. Click "+ What's on your mind?" or any date cell above to write your first entry!</p>
+</div>
+</section>
+
+<!-- Footer / Keyboard Shortcuts -->
+<footer>
+<div class="wrap footer-wrap">
+<div>
+<p class="big">DSA Focus Dashboard</p>
+<p>Designed for distraction-free, highly analytical practice sessions. Store data locally in your browser.</p>
+</div>
+<div class="deck-counter-badge" id="deck-counter-badge">Day 1 of 31</div>
+</div>
+
+<div class="deck-stage-wrapper" id="deck-stage-wrapper">
+<button type="button" class="deck-arrow-btn deck-arrow-prev" id="btn-deck-prev" aria-label="Previous Card">‹</button>
+<div class="deck-cards-viewport" id="deck-cards-viewport">
+<div class="deck-cards-track" id="deck-cards-track">
+<!-- 3D Cards rendered dynamically by JS -->
+</div>
+</div>
+<button type="button" class="deck-arrow-btn deck-arrow-next" id="btn-deck-next" aria-label="Next Card">›</button>
+</div>
+
+<div class="deck-pagination-bar" id="deck-pagination-bar">
+<!-- Dynamic Pagination Scrubber Dots -->
+</div>
+</div>
+</div>
+
+<!-- Journal Entries List -->
+<div class="card journal-entries-card">
+<div class="entries-header">
+<h3>Journal Timeline</h3>
+<span class="badge-count" id="journal-entries-count">0 entries</span>
+</div>
+<div class="journal-entries-list" id="journal-entries-list">
+<!-- Entries populated dynamically -->
+</div>
+<p class="empty-state hidden" id="journal-empty">No journal entries yet for this month. Click "+ What's on your mind?" or any date cell above to write your first entry!</p>
+</div>
+</section>
+
+<!-- Footer / Keyboard Shortcuts -->
+<footer>
+<div class="wrap footer-wrap">
+<div>
+<p class="big">DSA Focus Dashboard</p>
+<p>Designed for distraction-free, highly analytical practice sessions. Store data locally in your browser.</p>
+</div>
+<div class="shortcuts-bar">
+<div class="shortcut"><kbd>Space</kbd> Start/Pause</div>
+<div class="shortcut"><kbd>R</kbd> Reset</div>
+<div class="shortcut"><kbd>N</kbd> New Problem</div>
+<div class="shortcut"><kbd>Ctrl</kbd>+<kbd>S</kbd> Save</div>
+</div>
+</div>
+</footer>
+
+<!-- Notification Modal -->
+<div id="notification-modal" class="modal hidden" role="dialog" aria-modal="true">
+<div class="modal-content">
+<div class="modal-icon">⏰</div>
+<h2>Time's Up!</h2>
+<p id="motivational-quote">"Progress beats perfection."</p>
+<p class="sub-text">Either take a hint or move on to the next step.</p>
+<button class="btn primary" id="btn-close-modal">Continue</button>
+</div>
+</div>
+
+<!-- Centered Notes Modal -->
+<div id="notes-sidebar-backdrop" class="notes-modal-backdrop hidden"></div>
+<div id="notes-sidebar" class="notes-modal-overlay hidden" role="dialog" aria-modal="true">
+<div class="notes-modal-card">
+<div class="notes-modal-header">
+<div>
+<h3 class="notes-modal-heading">Problem Notes</h3>
+<p class="notes-modal-subtitle">Quick notes for “<span id="notes-sidebar-title">Problem Name</span>”.</p>
+</div>
+<button id="notes-sidebar-close" class="btn-close-notes-modal" aria-label="Close notes">✕</button>
+</div>
+<div class="notes-modal-body">
+<textarea id="notes-modal-textarea" class="notes-modal-textarea" placeholder="Write your thoughts, patterns, or reminders..."></textarea>
+</div>
+<div class="notes-modal-footer">
+<button id="notes-modal-cancel" class="btn-notes-cancel">Cancel</button>
+<button id="notes-modal-save" class="btn-notes-save">Update</button>
+</div>
+</div>
+</div>
+
+<!-- Interactive Windows-Style Conflict Resolution Modal -->
+<div id="conflict-modal" class="modal hidden" role="dialog" aria-modal="true">
+<div class="modal-content conflict-modal-content">
+<div class="conflict-header">
+<div class="conflict-title-group">
+<span class="conflict-icon">⚡</span>
+<div>
+<div class="eyebrow conflict-eyebrow">Duplicate Resolution</div>
+<h2 class="conflict-title">Import Conflict Detected</h2>
+</div>
+</div>
+<span class="conflict-counter-badge" id="conflict-counter">Conflict 1 of 1</span>
+</div>
+
+<p class="conflict-subtitle" id="conflict-summary-text">Found duplicate problem entries. Choose which version to keep.</p>
+
+<div class="conflict-body">
+<!-- Side-by-Side Comparison Cards -->
+<div class="conflict-comparison-grid">
+<!-- Left: Existing DB Record -->
+<div class="conflict-card conflict-card-existing">
+<div class="conflict-card-header">
+<span class="conflict-card-tag existing-tag">🗄️ Existing in Database</span>
+</div>
+<div class="conflict-card-details" id="conflict-existing-details">
+<!-- Injected dynamically -->
+</div>
+</div>
+
+<div class="conflict-vs-divider">VS</div>
+
+<!-- Right: Imported CSV Record -->
+<div class="conflict-card conflict-card-imported">
+<div class="conflict-card-header">
+<span class="conflict-card-tag imported-tag">📄 Imported from CSV</span>
+</div>
+<div class="conflict-card-details" id="conflict-imported-details">
+<!-- Injected dynamically -->
+</div>
+</div>
+</div>
+
+<!-- Resolution Actions for current conflict -->
+<div class="conflict-actions-bar">
+<button type="button" class="btn conflict-btn btn-keep-existing" id="btn-keep-existing">
+🔵 Keep Existing
+</button>
+<button type="button" class="btn conflict-btn btn-replace-imported" id="btn-replace-imported">
+🟢 Replace with Imported
+</button>
+<button type="button" class="btn conflict-btn btn-keep-both" id="btn-keep-both">
+🟡 Keep Both
+</button>
+</div>
+
+<!-- Batch / Shortcut Controls -->
+<div class="conflict-batch-footer">
+<label class="checkbox-label conflict-apply-all-label" for="conflict-apply-all">
+<input type="checkbox" id="conflict-apply-all">
+Do this for all remaining conflicts
+</label>
+
+<div class="conflict-batch-buttons">
+<button type="button" class="btn btn-batch" id="btn-skip-all">Skip All Duplicates</button>
+<button type="button" class="btn btn-batch" id="btn-replace-all">Replace All Duplicates</button>
+<button type="button" class="btn btn-batch" id="btn-keep-all">Keep All (Import Everything)</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Scratchpad Writing Modal ("What's on your mind?") -->
+<div class="modal-backdrop hidden" id="journal-modal" role="dialog" aria-modal="true" aria-labelledby="journal-modal-title">
+<div class="scratchpad-modal-card">
+<button type="button" class="scratchpad-close-btn" id="btn-close-journal-modal" aria-label="Close modal">✕</button>
+
+<div class="scratchpad-header">
+<div class="scratchpad-badge">
+<span class="scratchpad-icon">📝</span>
+<span>DAILY SCRATCHPAD</span>
+</div>
+<h2 id="journal-modal-title">What's on your mind?</h2>
+<div class="scratchpad-date-display" id="journal-modal-date">Thursday, July 30, 2026</div>
+</div>
+
+<form id="journal-form" autocomplete="off">
+<input type="hidden" id="journal-entry-id" value="">
+<input type="hidden" id="journal-entry-date" value="">
+
+<div class="scratchpad-paper">
+<div class="form-group scratchpad-title-group">
+<input type="text" id="journal-title" class="scratchpad-title-input" placeholder="Title (optional)...">
+</div>
+
+<div class="form-group scratchpad-body-group">
+<textarea id="journal-content" class="scratchpad-textarea" placeholder="Pour down your thoughts, DSA reflections, breakthroughs, or end-of-day recap..."></textarea>
+</div>
+</div>
+
+<div class="scratchpad-footer">
+<div class="scratchpad-meta">
+<span id="scratchpad-word-count" class="word-count-badge">0 words</span>
+<span class="draft-indicator hidden" id="scratchpad-draft-indicator">Draft saved</span>
+</div>
+<div class="scratchpad-actions">
+<button type="button" class="btn danger hidden" id="btn-delete-journal">Delete Entry</button>
+<button type="button" class="btn secondary" id="btn-cancel-journal">Cancel</button>
+<button type="submit" class="btn primary glow" id="btn-save-journal">Save Entry</button>
+</div>
+</div>
+</form>
+</div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
+</div>
+</div>
+
+<script src="script.js"></script>
 </body>
 </html>
