@@ -3590,12 +3590,155 @@ box-shadow: 0 8px 22px rgba(223, 79, 41, 0.35);
 transform: translateY(0) scale(0.97);
 }
 
-/* Pagination Scrubber Dots (Netflix Carousel Pills) */
-.deck-pagination-bar {
-position: relative;
-max-height: 150px;
-overflow-y: auto;
+/* Journal view-toggle bar */
+.journal-view-toggle-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 4px 0 8px;
 }
+
+/* Card header / body / footer rows inside .journal-deck-card */
+.card-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  width: 100%;
+  flex-shrink: 0;
+}
+
+.card-date-group {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.card-body-content {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  cursor: pointer;
+  padding: 2px 0;
+}
+
+.card-entry-title {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.card-entry-snippet {
+  font-size: 0.85rem;
+  color: var(--muted);
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  white-space: pre-wrap;
+}
+
+.card-footer-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.card-word-count {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+/* Empty-day prompt inside deck card */
+.card-empty-prompt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-align: center;
+  padding: 10px 0;
+  flex: 1;
+}
+
+.card-empty-prompt .empty-icon {
+  font-size: 1.8rem;
+  line-height: 1;
+  animation: iconFloat 3.5s ease-in-out infinite;
+}
+
+.card-empty-prompt p {
+  font-size: 0.85rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+/* Pagination Scrubber Dots */
+.deck-pagination-bar {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px 4px;
+  max-height: 80px;
+  overflow-y: auto;
+}
+
+.deck-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1.5px solid var(--muted);
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  flex-shrink: 0;
+}
+
+.deck-dot:hover {
+  background: var(--muted);
+  transform: scale(1.3);
+}
+
+.deck-dot.active {
+  width: 20px;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 0 8px rgba(223, 79, 41, 0.5);
+}
+
+.deck-dot.has-entry-dot {
+  border-color: var(--sage);
+}
+
+.deck-dot.has-entry-dot.active {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+/* Arrow buttons — reset transform baseline so translateY(-50%) works from their natural position */
+.deck-arrow-btn {
+  transform: translateY(-50%);
+}
+
 
 /* Scratchpad Modal ("What's on your mind?") */
 .modal-backdrop {

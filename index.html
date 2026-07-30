@@ -452,16 +452,67 @@ Clear
 </div>
 </div>
 
-<!-- Journal Entries List -->
-<div class="card journal-entries-card">
-<div class="entries-header">
-<h3>Journal Timeline</h3>
-<span class="badge-count" id="journal-entries-count">0 entries</span>
+<!-- View Toggle & Entries Area -->
+<div class="journal-view-toggle-bar">
+  <div class="view-toggle-pill-group" role="group" aria-label="Switch view">
+    <button type="button" id="btn-view-grid" class="toggle-pill-btn active" data-view="grid" aria-pressed="true">
+      <span class="toggle-icon">☰</span> Grid
+    </button>
+    <button type="button" id="btn-view-deck" class="toggle-pill-btn" data-view="deck" aria-pressed="false">
+      <span class="toggle-icon">🃏</span> Deck
+    </button>
+  </div>
 </div>
-<div class="journal-entries-list" id="journal-entries-list">
-<!-- Entries populated dynamically -->
+
+<!-- Grid View Wrapper (default) -->
+<div id="journal-grid-wrapper" class="journal-grid-wrapper">
+  <div class="card journal-entries-card">
+    <div class="entries-header">
+      <h3>Journal Timeline</h3>
+      <span class="badge-count" id="journal-entries-count">0 entries</span>
+    </div>
+    <div class="journal-entries-list" id="journal-entries-list">
+      <!-- Entries populated dynamically -->
+    </div>
+    <p class="empty-state hidden" id="journal-empty">No journal entries yet for this month. Click "+ What's on your mind?" or any date cell above to write your first entry!</p>
+  </div>
 </div>
-<p class="empty-state hidden" id="journal-empty">No journal entries yet for this month. Click "+ What's on your mind?" or any date cell above to write your first entry!</p>
+
+<!-- 3D Cover-Flow Deck View Container (hidden by default) -->
+<div id="journal-deck-container" class="journal-deck-container hidden" aria-label="3D Card Deck Journal View">
+
+  <!-- Ambient glow backdrop — color cycles per active card via JS -->
+  <div id="deck-ambient-glow" class="deck-ambient-glow" aria-hidden="true"></div>
+
+  <!-- Toolbar: filter pills + counter -->
+  <div class="deck-toolbar">
+    <div class="deck-filter-pills" role="group" aria-label="Filter cards">
+      <button type="button" id="deck-filter-all" class="deck-filter-btn active" data-filter="all">All Days</button>
+      <button type="button" id="deck-filter-entries" class="deck-filter-btn" data-filter="entries">With Entries</button>
+    </div>
+    <span id="deck-counter-badge" class="deck-counter-badge" aria-live="polite">Day 1 of 31</span>
+  </div>
+
+  <!-- Stage wrapper holding nav arrows + 3D viewport -->
+  <div class="deck-stage-wrapper">
+    <button type="button" id="btn-deck-prev" class="deck-arrow-btn prev" aria-label="Previous card" title="Previous (←)">‹</button>
+
+    <!-- 3D Viewport — perspective applied here; grab-cursor drag target -->
+    <div id="deck-cards-viewport" class="deck-cards-viewport" role="region" aria-label="Journal card deck">
+      <!-- 3D Track — preserve-3d; JS positions each card absolutely via inline transforms -->
+      <div id="deck-cards-track" class="deck-cards-track">
+        <!-- .journal-deck-card elements generated dynamically by renderDeckView() -->
+      </div>
+    </div>
+
+    <button type="button" id="btn-deck-next" class="deck-arrow-btn next" aria-label="Next card" title="Next (→)">›</button>
+  </div>
+
+  <!-- Pagination dot bar — one dot per card, populated by updateDeckCounterAndPagination() -->
+  <div id="deck-pagination-bar" class="deck-pagination-bar" role="tablist" aria-label="Jump to card">
+    <!-- Dots generated dynamically -->
+  </div>
+
 </div>
 </section>
 
