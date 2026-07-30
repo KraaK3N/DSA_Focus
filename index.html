@@ -30,7 +30,7 @@
 
 <div class="progress-container">
 <div class="progress-info">
-<span>Daily Goal <button class="btn-edit-goal" id="btn-edit-goal" title="Set daily goal" aria-label="Set daily goal">✏️</button></span>
+<span>Daily Goal <button class="btn-edit-goal" id="btn-edit-goal" title="Set daily goal" aria-label="Set daily goal"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg></button></span>
 <span id="progress-text">0/10</span>
 </div>
 <div class="progress-bar-bg">
@@ -284,7 +284,7 @@ Clear
 
 <label class="checkbox-label pace-weighted-label" for="chk-pace-weighted" title="Weighted mode factors in Easy (1.0x), Medium (1.5x), Hard (2.5x) difficulty weights">
 <input type="checkbox" id="chk-pace-weighted">
-Smart Weighted Pace
+<span>Smart Weighted Pace</span>
 </label>
 </div>
 </div>
@@ -292,16 +292,19 @@ Smart Weighted Pace
 <!-- Target Progress Line -->
 <div class="pace-progress-container">
 <div class="pace-progress-info">
-<span>
-Target Progress: 
-<span id="pace-solved-display"><strong id="pace-solved-count">0</strong></span>
-<button type="button" class="btn-edit-goal" id="btn-edit-solved-count" title="Set baseline total solved problems count" aria-label="Set baseline total solved problems count">✏️</button>
-/ 
-<span id="pace-target-display"><strong id="pace-target-count">474</strong></span>
-<button type="button" class="btn-edit-goal" id="btn-edit-target-total" title="Set target total problems goal" aria-label="Set target total problems goal">✏️</button>
-problems solved 
-(<span id="pace-percent">0%</span>)
-</span>
+<div class="pace-progress-text">
+<span class="pace-progress-title">Target Progress:</span>
+<span id="pace-solved-display" class="pace-count-highlight"><strong id="pace-solved-count">0</strong></span>
+<button type="button" class="btn-edit-goal" id="btn-edit-solved-count" title="Set baseline total solved problems count" aria-label="Set baseline total solved problems count">
+<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+</button>
+<span class="pace-divider">/</span>
+<span id="pace-target-display" class="pace-count-highlight"><strong id="pace-target-count">474</strong></span>
+<button type="button" class="btn-edit-goal" id="btn-edit-target-total" title="Set target total problems goal" aria-label="Set target total problems goal">
+<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+</button>
+<span class="pace-subtext">problems solved (<span id="pace-percent">0%</span>)</span>
+</div>
 <span class="pace-remaining-badge" id="pace-remaining-badge">474 remaining</span>
 </div>
 <div class="progress-bar-bg pace-bar-bg">
@@ -311,7 +314,7 @@ problems solved
 
 <!-- Pace & Projection Metrics Grid -->
 <div class="pace-metrics-grid">
-<div class="pace-metric-box">
+<div class="pace-metric-box pace-metric-velocity">
 <div class="pace-metric-icon">⚡</div>
 <div class="pace-metric-body">
 <div class="pace-metric-val" id="pace-velocity-val">0.0 / week</div>
@@ -319,7 +322,7 @@ problems solved
 </div>
 </div>
 
-<div class="pace-metric-box">
+<div class="pace-metric-box pace-metric-time">
 <div class="pace-metric-icon">⌛</div>
 <div class="pace-metric-body">
 <div class="pace-metric-val" id="pace-time-val">~0.0 weeks</div>
@@ -327,7 +330,7 @@ problems solved
 </div>
 </div>
 
-<div class="pace-metric-box">
+<div class="pace-metric-box pace-metric-date">
 <div class="pace-metric-icon">📅</div>
 <div class="pace-metric-body">
 <div class="pace-metric-val" id="pace-date-val">N/A</div>
