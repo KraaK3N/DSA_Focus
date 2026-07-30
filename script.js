@@ -1225,9 +1225,13 @@ class App {
         const elapsedSecs = this.timer.getElapsedSeconds();
         const formattedTime = this.timer.getFormattedElapsed();
 
+        // Use local date (not UTC) so IST dates are always correct
+        const _now = new Date();
+        const _localDate = `${_now.getFullYear()}-${String(_now.getMonth() + 1).padStart(2, '0')}-${String(_now.getDate()).padStart(2, '0')}`;
+
         const problemData = {
             id: this.editingId || Date.now().toString(),
-            date: new Date().toISOString().split('T')[0],
+            date: _localDate,
             name: nameInput.value.trim(),
             url: document.getElementById('p-url').value.trim(),
             platform: document.getElementById('p-platform').value.trim() || 'N/A',
@@ -1366,10 +1370,10 @@ class App {
         const filtered = this.problems.filter(p => {
             const query = searchQuery.toLowerCase().trim();
             const matchesSearch = !query || 
-                p.name.toLowerCase().includes(query) ||
-                p.platform.toLowerCase().includes(query) ||
-                p.topic.toLowerCase().includes(query) ||
-                p.notes.toLowerCase().includes(query);
+                (p.name || '').toLowerCase().includes(query) ||
+                (p.platform || '').toLowerCase().includes(query) ||
+                (p.topic || '').toLowerCase().includes(query) ||
+                (p.notes || '').toLowerCase().includes(query);
 
             const matchesDifficulty = selectedDifficulty === 'All' || p.difficulty === selectedDifficulty;
             
@@ -1949,6 +1953,51 @@ class App {
         }
     }
 
+    /* ─── CSV Text Fallback Parser ─────────────────────────── */
+
+    parseCSVText(text) {
+        const lines = text.split(/\r?\n/);
+        if (lines.length < 2) return [];
+
+        const parseRow = (line) => {
+            const result = [];
+            let current = '';
+            let inQuotes = false;
+            for (let i = 0; i < line.length; i++) {
+                const ch = line[i];
+                if (ch === '"') {
+                    if (inQuotes && line[i + 1] === '"') {
+                        current += '"';
+                        i++;
+                    } else {
+                        inQuotes = !inQuotes;
+                    }
+                } else if (ch === ',' && !inQuotes) {
+                    result.push(current);
+                    current = '';
+                } else {
+                    current += ch;
+                }
+            }
+            result.push(current);
+            return result;
+        };
+
+        const headers = parseRow(lines[0]);
+        const rows = [];
+        for (let i = 1; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (!line) continue;
+            const values = parseRow(line);
+            const row = {};
+            headers.forEach((h, idx) => {
+                row[h.trim()] = values[idx] !== undefined ? values[idx].trim() : '';
+            });
+            rows.push(row);
+        }
+        return rows;
+    }
+
     /* ─── Helpers ────────────────────────────────────────────── */
 
     parseSecondsFromFormatted(str) {
@@ -1984,7 +2033,9 @@ class App {
     }
 
     updateStats() {
-        const todayStr = new Date().toISOString().split('T')[0];
+        // Use local date (not UTC ISO string) so IST dates are always correct
+        const _t = new Date();
+        const todayStr = `${_t.getFullYear()}-${String(_t.getMonth() + 1).padStart(2, '0')}-${String(_t.getDate()).padStart(2, '0')}`;
 
         let todayCount = 0;
         let todaySeconds = 0;  // focus time for TODAY only
@@ -2068,14 +2119,16 @@ class App {
             }
         }
 
-        const sortedDates = Array.from(uniqueDates).sort((a, b) => new Date(b) - new Date(a));
+        const sortedDates = Array.from(uniqueDates).sort((a, b) => b.localeCompare(a));
         let streak = 0;
-        let checkDate = new Date();
-        checkDate.setHours(0, 0, 0, 0);
+        // Use local midnight for today to avoid UTC offset issues
+        const _todayRef = new Date();
+        let checkDate = new Date(_todayRef.getFullYear(), _todayRef.getMonth(), _todayRef.getDate());
 
         for (let i = 0; i < sortedDates.length; i++) {
-            const pDate = new Date(sortedDates[i]);
-            pDate.setHours(0, 0, 0, 0);
+            // Parse date string as local midnight (not UTC) to avoid off-by-one day in IST
+            const parts = sortedDates[i].split('-');
+            const pDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
             const diffDays = Math.round((checkDate - pDate) / (1000 * 60 * 60 * 24));
 
             if (diffDays === 0 || diffDays === 1) {
@@ -2407,9 +2460,9 @@ class App {
         // Display Velocity
         if (velocityValEl) {
             if (isWeighted) {
-                velocityValEl.textContent = `⚡ ${weeklyWeightedVelocity.toFixed(1)} pts/wk`;
+                velocityValEl.textContent = `${weeklyWeightedVelocity.toFixed(1)} pts/wk`;
             } else {
-                velocityValEl.textContent = `⚡ ${weeklyVelocity.toFixed(1)} / wk`;
+                velocityValEl.textContent = `${weeklyVelocity.toFixed(1)} / wk`;
             }
         }
         if (velocityLabelEl) {
@@ -2425,7 +2478,7 @@ class App {
         let timeSubText = '0 days remaining';
 
         if (totalSolved >= targetTotal) {
-            if (timeValEl) timeValEl.textContent = '🎉 Goal Met!';
+            if (timeValEl) timeValEl.textContent = 'Goal Met!';
             if (timeLabelEl) timeLabelEl.textContent = '0 days remaining';
             if (dateValEl) dateValEl.textContent = 'Completed!';
             if (dateLabelEl) dateLabelEl.textContent = 'All target problems solved';
@@ -2475,11 +2528,11 @@ class App {
         }
 
         if (timeValEl) {
-            timeValEl.textContent = daysRemaining > 0 ? `⌛ ~${weeksRemaining.toFixed(1)} wks` : '⌛ N/A';
+            timeValEl.textContent = daysRemaining > 0 ? `~${weeksRemaining.toFixed(1)} wks` : 'N/A';
         }
         if (timeLabelEl) timeLabelEl.textContent = timeSubText;
 
-        if (dateValEl) dateValEl.textContent = `📅 ${dateStr}`;
+        if (dateValEl) dateValEl.textContent = dateStr;
         if (dateLabelEl) dateLabelEl.textContent = dateLabel;
     }
 }
