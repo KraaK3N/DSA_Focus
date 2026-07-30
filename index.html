@@ -601,10 +601,16 @@ Clear
 
 <div class="conflict-subtitle-bar">
 <p class="conflict-subtitle" id="conflict-summary-text">Found duplicate problem entries. Choose which version to keep.</p>
+<div style="display: flex; align-items: center; gap: 12px;">
+<label class="checkbox-label" for="conflict-toggle-hide-same" title="Hide fields that are identical between existing and imported" style="font-size: 0.76rem; color: var(--text-muted); cursor: pointer;">
+<input type="checkbox" id="conflict-toggle-hide-same">
+<span>Hide identical</span>
+</label>
 <button type="button" class="btn-conflict-undo hidden" id="btn-undo-conflict" title="Undo last decision">
 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v6h6"></path><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"></path></svg>
 <span>Undo Last</span>
 </button>
+</div>
 </div>
 
 <div class="conflict-body">
@@ -639,11 +645,10 @@ Imported from CSV
 </div>
 </div>
 
-<!-- Resolution Actions for current conflict -->
 <div class="conflict-actions-bar">
 <button type="button" class="btn conflict-btn btn-keep-existing" id="btn-keep-existing" tabindex="0" title="Keep Existing Version (Enter)">
 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M21 19c0 1.66-4 3-9 3s-9-1.34-9-3"></path></svg>
-<span>Keep Existing (Skip New)</span>
+<span>Keep Existing</span>
 </button>
 <button type="button" class="btn conflict-btn btn-replace-imported" id="btn-replace-imported" tabindex="0" title="Replace Existing Entry with Imported Entry">
 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
@@ -651,7 +656,7 @@ Imported from CSV
 </button>
 <button type="button" class="btn conflict-btn btn-keep-both" id="btn-keep-both" tabindex="0" title="Keep Both Entries as Separate Records">
 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-<span>Keep Both Files</span>
+<span>Keep Both</span>
 </button>
 </div>
 

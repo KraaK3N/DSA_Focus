@@ -1,0 +1,84 @@
+ ## Overview
+
+  The DSA Focus Dashboard is a web-based
+  productivity workspace designed to help
+  developers track, manage, and optimize their
+  Data Structures & Algorithms (DSA) practice. It
+  combines problem logging, time tracking,
+  algorithmic scratchpad notes, visual progress
+  analytics, and CSV data management into a
+  single editorial interface.
+  ──────
+  ## Key Features
+
+  ### 1. Workspace & Problem Logging
+
+  • Detailed Tracking: Log problem name, URL,
+  platform (LeetCode, Codeforces, HackerRank,
+  etc.), difficulty rating (Easy, Medium, Hard),
+  topic tags, and time spent.
+  • Solve Metadata: Record whether hints were
+  used, if the problem was solved independently
+  (solo), and whether it requires future revision.
+
+  ### 2. Focus Timer & Algorithmic Scratchpad
+
+  • Focus Timer: SVG ring countdown timer with
+  custom session durations, play/pause/reset
+  controls, and monospace timer display (Fira
+  Code).
+  • Scratchpad Modal: A dedicated scratchpad card
+  and popup modal (What's on your mind?) with a
+  dot-matrix background pattern for brainstorming
+  logic, time complexity, and pseudo-code before
+  submitting solutions.
+
+  ### 3. Dual Calendar & 3D Cards View
+
+  • Grid Calendar & Timeline: View daily practice
+  activity, streak progress, and problem logs
+  across a monthly calendar grid.
+  • 3D Coverflow Deck: An interactive 3D vertical
+  card deck (7:5 aspect ratio) with drag-and-
+  swipe physics to browse past problem solutions
+  visually.
+
+  ### 4. Solved Problem Spreadsheet & Notes
+
+  • Interactive Tracker: Filter by difficulty,
+  platform, or topic, and search through solved
+  problems.
+  • Problem Notes Popup: A centered popup modal
+  ("Save Notes") for editing solution notes,
+  approach details, and code snippets.
+
+  ### 5. CSV Import/Export & Windows-Style       
+  Duplicate Handling
+
+  • Export & Backup: Export solved problem
+  history into structured .csv format.
+  • Smart Import with Windows-Style Conflict
+  Resolution: Upload CSV files with automatic
+  header mapping, UTF-8 BOM stripping, and a
+  side-by-side comparison modal for duplicate
+  entries (featuring visual diff badges, Keep
+  Existing, Replace with Imported, Keep Both, and
+  batch resolution controls).
+
+  ### 6. Design System & Theme Engine
+
+  • Typography: Bricolage Grotesque display
+  typography paired with Hanken Grotesk body text
+  and Fira Code for code/timer fonts.
+  • Dark & Light Modes: Seamless theme switching
+  with custom CSS properties.
+  ──────
+  ## Technical Stack
+
+  • Frontend: Standard HTML5, Modern JavaScript
+  (ES6+), Vanilla CSS (Custom Property Design
+  System)
+  • Data Parsing: PapaParse + custom fallback
+  parser with BOM handling
+  • Storage & Backend: Browser LocalStorage &
+  Node.js backend integration

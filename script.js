@@ -1763,6 +1763,13 @@ class App {
         if (btnReviewSkipped) btnReviewSkipped.addEventListener('click', () => this.reviewSkippedConflicts());
         if (btnCommitImport) btnCommitImport.addEventListener('click', () => this.finalizeConflictResolution());
 
+        const toggleHideSame = document.getElementById('conflict-toggle-hide-same');
+        if (toggleHideSame) {
+            toggleHideSame.addEventListener('change', () => {
+                this.renderCurrentConflict();
+            });
+        }
+
         // Focus ring navigation index for keyboard
         this.actionButtonFocusIdx = 0;
         const actionButtons = [btnKeepExisting, btnReplaceImported, btnKeepBoth].filter(Boolean);
@@ -1938,29 +1945,90 @@ class App {
 
     buildConflictCardHtml(record, otherRecord, diffFields) {
         const fields = [
-            { label: 'Date Logged', key: 'date', val: record.date },
-            { label: 'Problem Name', key: 'name', val: record.name },
-            { label: 'Platform', key: 'platform', val: record.platform },
-            { label: 'Difficulty', key: 'difficulty', val: record.difficulty },
-            { label: 'Topic', key: 'topic', val: record.topic },
-            { label: 'URL', key: 'url', val: record.url || 'None' },
-            { label: 'Time Spent', key: 'timeSpent', val: record.timeSpent || '0s' },
-            { label: 'Hint Used', key: 'hintUsed', val: record.hintUsed ? 'Yes 💡' : 'No' },
-            { label: 'Solo Solved', key: 'independent', val: record.independent ? 'Yes' : 'No (Help)' },
-            { label: 'Needs Revision', key: 'needsRevision', val: record.needsRevision ? 'Yes 🔄' : 'No' },
-            { label: 'Notes', key: 'notes', val: record.notes ? record.notes : 'None' }
+            { 
+                label: 'Problem', 
+                key: 'name', 
+                val: record.name, 
+                icon: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>' 
+            },
+            { 
+                label: 'Date', 
+                key: 'date', 
+                val: record.date, 
+                icon: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>' 
+            },
+            { 
+                label: 'Platform', 
+                key: 'platform', 
+                val: record.platform, 
+                icon: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>' 
+            },
+            { 
+                label: 'Difficulty', 
+                key: 'difficulty', 
+                val: record.difficulty, 
+                isBadge: true, 
+                icon: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>' 
+            },
+            { 
+                label: 'Topic', 
+                key: 'topic', 
+                val: record.topic || 'General', 
+                icon: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>' 
+            },
+            { 
+                label: 'Time', 
+                key: 'timeSpent', 
+                val: record.timeSpent || '0s', 
+                icon: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>' 
+            },
+            { 
+                label: 'Revision', 
+                key: 'needsRevision', 
+                val: record.needsRevision ? 'Yes 🔄' : 'No', 
+                icon: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path></svg>' 
+            },
+            { 
+                label: 'Hint Used', 
+                key: 'hintUsed', 
+                val: record.hintUsed ? 'Yes 💡' : 'No', 
+                icon: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18h6M10 22h4M15.09 14A6 6 0 0 0 18 9a6 6 0 0 0-12 0 6 6 0 0 0 2.91 5"></path></svg>' 
+            }
         ];
 
-        return fields.map(f => {
+        // Hide identical fields if toggle enabled (or show differences with distinct styling)
+        const hideIdentical = document.getElementById('conflict-toggle-hide-same')?.checked;
+        let visibleFields = fields;
+        if (hideIdentical) {
+            visibleFields = fields.filter(f => diffFields.includes(f.key));
+        }
+
+        if (visibleFields.length === 0) {
+            return `
+                <div class="conflict-all-same-msg">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-easy)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    <span>All key fields match existing record</span>
+                </div>
+            `;
+        }
+
+        return visibleFields.map(f => {
             const isDiff = diffFields.includes(f.key);
             const rowClass = isDiff ? 'is-diff' : 'is-same';
+
+            let valHTML = this.escapeHtml(String(f.val));
+            if (f.isBadge) {
+                const diffLower = String(f.val).toLowerCase();
+                valHTML = `<span class="badge badge-${diffLower}">${this.escapeHtml(String(f.val))}</span>`;
+            }
 
             return `
                 <div class="conflict-field-row ${rowClass}">
                     <div class="conflict-field-label">
+                        ${f.icon}
                         <span>${f.label}</span>
                     </div>
-                    <div class="conflict-field-val">${this.escapeHtml(String(f.val))}</div>
+                    <div class="conflict-field-val" title="${this.escapeHtml(String(f.val))}">${valHTML}</div>
                 </div>
             `;
         }).join('');

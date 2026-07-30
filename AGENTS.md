@@ -37,9 +37,10 @@
 - 2026-07-31 — Rebuilt CSV import duplicate resolution to match Windows File Explorer UX: added top-right close `✕` button on all modal views, updated action button names matching Windows Explorer prompts (`Keep Existing (Skip New)`, `Replace with Imported`, `Keep Both Files`, `Apply this choice to all remaining conflicts` toggle checkbox, `Skip All (Keep Existing)`, `Replace All (Use Imported)`, `Keep All (Save Both)`), field-level diff detection with soft amber background highlight on differing fields and muted opacity on identical fields, `N field(s) differ` summary badge, `Skip for now` action and `Undo Last` resolution stack, keyboard controls (`Enter`, `Esc`, `Arrow keys`, focus trap), theme-aware custom webkit scrollbars, and an end-of-batch summary screen (`X kept` · `Y replaced` · `Z kept both` · `K skipped` with `Review Skipped Conflicts` and `Finish & Commit Import`).
 - 2026-07-31 — Redesigned "What's on your mind?" and "+ Write" / "+ Write Note" modal popup (`#journal-modal`) to match the centered Notes Modal popup (`notes-modal-card`) structure and aesthetic: backdrop blur overlay (`#journal-modal-backdrop`), terracotta orange heading, date subtitle, top-right close `✕` button, dark inner well textarea, title input, and bottom-right `Cancel` / `Save Entry` action buttons.
 - 2026-07-31 — Removed the redundant Journal Timeline section (`#journal-grid-wrapper` / `.journal-entries-card`) from the bottom of the Journal view as requested.
+- 2026-07-31 — Overhauled CSV Conflict Resolution modal to be significantly more compact (~20% size reduction, `max-width: 640px`), strict 50/50 side-by-side equal width summary cards (`min-width: 0` CSS grid fix eliminating squished columns), SVG field icons, difficulty badges, optional "Hide identical fields" toggle, soft amber/terracotta row difference highlighting, and prominent side-by-side action buttons (`Keep Existing` · `Replace with Imported` · `Keep Both`) for fast 5-second conflict resolution.
 
 ## Current Focus
-- Working on: Journal Timeline Removal Completed.
+- Working on: 3-Button Side-by-Side Action Row Fixed.
 - Blocked on / open question: None
 - Next up: User review and validation
 
@@ -59,6 +60,7 @@
 - **2026-07-31** — Rebuilt CSV import duplicate resolution workflow to match Windows File Explorer UX. Added top-right close `✕` buttons, Windows Explorer-style action prompt names, queue management, progress indicator + bar, field-level diff highlights (`.is-diff` soft amber vs `.is-same` muted), `N field(s) differ` summary badge, batch checkbox toggle (`Apply this choice to all remaining conflicts`), `Skip for now`, `Undo Last`, keyboard navigation (`Enter`/`Esc`/`Arrows`), theme-aware custom scrollbars, and an end-of-batch summary screen with review of skipped conflicts and atomic commit.
 - **2026-07-31** — Redesigned "What's on your mind?" and "+ Write Note" / "+ Write" modal popup (`#journal-modal`) to pop up cleanly matching the exact centered Notes modal popup (`notes-modal-card`) aesthetic with backdrop blur (`#journal-modal-backdrop`), terracotta title, date subtitle, top-right close `✕`, dark inner well textarea, title field, and bottom-right `Cancel` / `Save Entry` buttons.
 - **2026-07-31** — Removed the Journal Timeline card at the bottom of the Journal section (`index.html`).
+- **2026-07-31** — Fixed media query syntax bug in `styles.css` so conflict action buttons (`Keep Existing`, `Replace with Imported`, `Keep Both`) render in a single side-by-side 3-column row, saving significant vertical space.
 
 ## Known Gotchas
 > Things that look like bugs but aren't, dead ends already tried, or quirks of this
