@@ -2589,6 +2589,9 @@ class JournalManager {
         this.btnViewDeck = document.getElementById('btn-view-deck');
         this.gridWrapper = document.getElementById('journal-grid-wrapper');
         this.deckContainer = document.getElementById('journal-deck-container');
+        this.calendarGridBody = document.getElementById('journal-calendar-grid-body');
+        this.journalViewTitle = document.getElementById('journal-view-title');
+        this.journalViewSubtext = document.getElementById('journal-view-subtext');
 
         // Deck elements
         this.deckTrack = document.getElementById('deck-cards-track');
@@ -2831,7 +2834,7 @@ class JournalManager {
                     }
 
                     if (this.isDraggingDeck) {
-                        this.deckScrollTarget = Math.max(0, Math.min(this.deckCards.length - 1, this.dragStartScrollTarget - (deltaX / 135)));
+                        this.deckScrollTarget = Math.max(0, Math.min(this.deckCards.length - 1, this.dragStartScrollTarget - (deltaX / 140)));
                     }
                 }
             });
@@ -2931,15 +2934,33 @@ class JournalManager {
         this.activeView = viewName;
 
         if (viewName === 'grid') {
+            if (this.calendarGridBody) this.calendarGridBody.classList.remove('hidden');
             if (this.gridWrapper) this.gridWrapper.classList.remove('hidden');
             if (this.deckContainer) this.deckContainer.classList.add('hidden');
-            if (this.btnViewGrid) this.btnViewGrid.classList.add('active');
-            if (this.btnViewDeck) this.btnViewDeck.classList.remove('active');
+            if (this.btnViewGrid) {
+                this.btnViewGrid.classList.add('active');
+                this.btnViewGrid.setAttribute('aria-pressed', 'true');
+            }
+            if (this.btnViewDeck) {
+                this.btnViewDeck.classList.remove('active');
+                this.btnViewDeck.setAttribute('aria-pressed', 'false');
+            }
+            if (this.journalViewTitle) this.journalViewTitle.textContent = 'Calendar View';
+            if (this.journalViewSubtext) this.journalViewSubtext.textContent = 'Click on any date to write or view thoughts for that day';
         } else {
+            if (this.calendarGridBody) this.calendarGridBody.classList.add('hidden');
             if (this.gridWrapper) this.gridWrapper.classList.add('hidden');
             if (this.deckContainer) this.deckContainer.classList.remove('hidden');
-            if (this.btnViewDeck) this.btnViewDeck.classList.add('active');
-            if (this.btnViewGrid) this.btnViewGrid.classList.remove('active');
+            if (this.btnViewDeck) {
+                this.btnViewDeck.classList.add('active');
+                this.btnViewDeck.setAttribute('aria-pressed', 'true');
+            }
+            if (this.btnViewGrid) {
+                this.btnViewGrid.classList.remove('active');
+                this.btnViewGrid.setAttribute('aria-pressed', 'false');
+            }
+            if (this.journalViewTitle) this.journalViewTitle.textContent = 'Cards View';
+            if (this.journalViewSubtext) this.journalViewSubtext.textContent = 'Browse your daily reflections with 3D interactive cards';
             this.renderDeckView();
         }
     }
@@ -2990,11 +3011,11 @@ class JournalManager {
             const absOffset = Math.abs(offset);
             const dir = offset > 0 ? 1 : -1;
 
-            // Condensed Horizontal 3D Cover Flow Physics (Horizontal peek ~135px)
-            const translateX = offset * 135;
-            const translateZ = -absOffset * 85;
-            const rotateYCurve = -dir * Math.min(18, absOffset * 9);
-            const scale = Math.max(0.7, 1 - absOffset * 0.08);
+            // Condensed Horizontal 3D Cover Flow Physics (7:5 vertical format, ~140px peek)
+            const translateX = offset * 140;
+            const translateZ = -absOffset * 80;
+            const rotateYCurve = -dir * Math.min(20, absOffset * 10);
+            const scale = Math.max(0.72, 1 - absOffset * 0.07);
             const opacity = Math.max(0, 1 - absOffset * 0.25);
             const zIndex = Math.round(100 - absOffset * 10);
 

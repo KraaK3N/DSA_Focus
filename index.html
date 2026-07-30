@@ -440,17 +440,31 @@ Clear
 <div class="card journal-calendar-card">
 <div class="calendar-header-bar">
 <div class="calendar-title">
-<h3>Calendar View</h3>
-<p class="sub-text">Click on any date to write or view thoughts for that day</p>
+<h3 id="journal-view-title">Calendar View</h3>
+<p class="sub-text" id="journal-view-subtext">Click on any date to write or view thoughts for that day</p>
 </div>
 <div class="calendar-controls">
 <button class="btn btn-icon secondary" id="btn-prev-month" title="Previous Month" aria-label="Previous Month">‹</button>
 <div class="calendar-month-display" id="calendar-month-year">July 2026</div>
 <button class="btn btn-icon secondary" id="btn-next-month" title="Next Month" aria-label="Next Month">›</button>
+
+<div class="view-toggle-pill-group" role="group" aria-label="Switch view">
+  <button type="button" id="btn-view-grid" class="toggle-pill-btn active" data-view="grid" aria-pressed="true" title="Grid Calendar View">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+    <span>Grid</span>
+  </button>
+  <button type="button" id="btn-view-deck" class="toggle-pill-btn" data-view="deck" aria-pressed="false" title="Cards Deck View">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"></rect><path d="M12 12h.01"></path></svg>
+    <span>Cards</span>
+  </button>
+</div>
+
 <button class="btn secondary sm" id="btn-calendar-today">Today</button>
 </div>
 </div>
 
+<!-- Grid View Body (Calendar Grid) -->
+<div id="journal-calendar-grid-body" class="journal-calendar-grid-body">
 <div class="calendar-weekdays">
 <span>Sun</span>
 <span>Mon</span>
@@ -464,34 +478,6 @@ Clear
 <div class="calendar-grid" id="calendar-grid">
 <!-- Days generated dynamically in JS -->
 </div>
-</div>
-
-<!-- View Toggle & Entries Area -->
-<div class="journal-view-toggle-bar">
-  <div class="view-toggle-pill-group" role="group" aria-label="Switch view">
-    <button type="button" id="btn-view-grid" class="toggle-pill-btn active" data-view="grid" aria-pressed="true">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-      <span>Grid</span>
-    </button>
-    <button type="button" id="btn-view-deck" class="toggle-pill-btn" data-view="deck" aria-pressed="false">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"></rect><path d="M12 12h.01"></path></svg>
-      <span>Deck</span>
-    </button>
-  </div>
-</div>
-
-<!-- Grid View Wrapper (default) -->
-<div id="journal-grid-wrapper" class="journal-grid-wrapper">
-  <div class="card journal-entries-card">
-    <div class="entries-header">
-      <h3>Journal Timeline</h3>
-      <span class="badge-count" id="journal-entries-count">0 entries</span>
-    </div>
-    <div class="journal-entries-list" id="journal-entries-list">
-      <!-- Entries populated dynamically -->
-    </div>
-    <p class="empty-state hidden" id="journal-empty">No journal entries yet for this month. Click "+ What's on your mind?" or any date cell above to write your first entry!</p>
-  </div>
 </div>
 
 <!-- 3D Cover-Flow Deck View Container (hidden by default) -->
@@ -530,6 +516,21 @@ Clear
   </div>
 
 </div>
+</div>
+
+<!-- Grid View Wrapper (default) -->
+<div id="journal-grid-wrapper" class="journal-grid-wrapper">
+  <div class="card journal-entries-card">
+    <div class="entries-header">
+      <h3>Journal Timeline</h3>
+      <span class="badge-count" id="journal-entries-count">0 entries</span>
+    </div>
+    <div class="journal-entries-list" id="journal-entries-list">
+      <!-- Entries populated dynamically -->
+    </div>
+    <p class="empty-state hidden" id="journal-empty">No journal entries yet for this month. Click "+ What's on your mind?" or any date cell above to write your first entry!</p>
+  </div>
+</div>
 </section>
 
 <!-- Footer / Keyboard Shortcuts -->
@@ -561,23 +562,28 @@ Clear
 </div>
 </div>
 
-<!-- Centered Notes Modal -->
-<div id="notes-sidebar-backdrop" class="notes-modal-backdrop hidden"></div>
-<div id="notes-sidebar" class="notes-modal-overlay hidden" role="dialog" aria-modal="true">
-<div class="notes-modal-card">
+<!-- Centered Notes Modal (Matches Scratchpad Modal Aesthetic) -->
+<div id="notes-sidebar-backdrop" class="modal-backdrop hidden"></div>
+<div id="notes-sidebar" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="notes-sidebar-heading">
+<div class="scratchpad-modal-card notes-modal-card">
+<button type="button" id="notes-sidebar-close" class="scratchpad-close-btn" aria-label="Close notes">✕</button>
+
 <div class="notes-modal-header">
-<div>
-<h3 class="notes-modal-heading">Problem Notes</h3>
-<p class="notes-modal-subtitle">Quick notes for “<span id="notes-sidebar-title">Problem Name</span>”.</p>
+<div class="scratchpad-badge">
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+<span>PROBLEM NOTES</span>
 </div>
-<button id="notes-sidebar-close" class="btn-close-notes-modal" aria-label="Close notes">✕</button>
+<h2 class="notes-modal-heading" id="notes-sidebar-heading">Save Notes</h2>
+<p class="notes-modal-subtitle">Add quick notes for “<span id="notes-sidebar-title">Problem Name</span>”.</p>
 </div>
+
 <div class="notes-modal-body">
 <textarea id="notes-modal-textarea" class="notes-modal-textarea" placeholder="Write your thoughts, patterns, or reminders..."></textarea>
 </div>
+
 <div class="notes-modal-footer">
-<button id="notes-modal-cancel" class="btn-notes-cancel">Cancel</button>
-<button id="notes-modal-save" class="btn-notes-save">Update</button>
+<button type="button" id="notes-modal-cancel" class="btn secondary">Cancel</button>
+<button type="button" id="notes-modal-save" class="btn primary glow">Save</button>
 </div>
 </div>
 </div>

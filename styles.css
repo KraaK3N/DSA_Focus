@@ -116,6 +116,27 @@ body.dark-theme {
   --shadow-xs:          0 1px 2px rgba(0, 0, 0, 0.20);
   --shadow-md:          0 4px 16px rgba(0, 0, 0, 0.35);
   --shadow-lg:          0 12px 32px rgba(0, 0, 0, 0.50);
+
+  /* Legacy Aliases re-mapped for Dark Mode */
+  --bg:          var(--bg-app);
+  --paper:       var(--bg-surface);
+  --ink:         var(--text-main);
+  --muted:       var(--text-muted);
+  --hair:        var(--border-subtle);
+
+  --accent:      var(--accent-primary);
+  --accent-deep: var(--accent-primary-hover);
+  --blue:        var(--accent-blue);
+  --sage:        var(--color-easy);
+  --gold:        var(--color-medium);
+  --orange-deep: var(--color-hard);
+
+  --diff-easy:   var(--color-easy);
+  --diff-medium: var(--color-medium);
+  --diff-hard:   var(--color-hard);
+
+  --shadow:      var(--shadow-md);
+  --shadow-sm:   var(--shadow-xs);
 }
 
 /* ---------------------------------------------------------
@@ -1885,47 +1906,91 @@ background: rgba(255, 255, 255, 0.08);
 color: var(--ink);
 }
 
+/* Centered Notes Modal Styling (Matches Scratchpad Modal Aesthetic) */
+.notes-modal-card {
+  max-width: 600px;
+  width: 92%;
+}
+
+.notes-modal-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 14px;
+}
+
+.notes-modal-heading {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--accent-primary);
+  line-height: 1.2;
+}
+
+.notes-modal-subtitle {
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  font-weight: 500;
+  word-break: break-word;
+}
+
+.notes-modal-subtitle span {
+  color: var(--text-main);
+  font-weight: 700;
+}
+
 .notes-modal-body {
-width: 100%;
+  width: 100%;
+  margin-top: 4px;
 }
 
 .notes-modal-textarea {
-width: 100%;
-min-height: 200px;
-max-height: 50vh;
-background: var(--bg);
-border: 1px solid var(--hair);
-border-radius: 10px;
-padding: 16px;
-box-sizing: border-box;
-font-family: var(--font-ui);
-font-size: 0.95rem;
-line-height: 1.6;
-color: var(--ink);
-resize: vertical;
-transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  width: 100%;
+  min-height: 220px;
+  max-height: 55vh;
+  background: var(--bg-surface-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  box-sizing: border-box;
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--text-main);
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .notes-modal-textarea::placeholder {
-color: var(--muted);
-opacity: 0.6;
+  color: var(--text-muted);
+  opacity: 0.6;
 }
 
 .notes-modal-textarea:focus {
-outline: none;
-border-color: var(--accent);
-box-shadow: 0 0 0 3px rgba(223, 79, 41, 0.15);
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px var(--accent-primary-subtle);
 }
 
 body.dark-theme .notes-modal-textarea {
-background: #1b1715;
-border-color: rgba(255, 255, 255, 0.12);
-color: var(--ink);
+  background: var(--bg-surface-subtle);
+  border-color: var(--border-subtle);
+  color: var(--text-main);
 }
 
 body.dark-theme .notes-modal-textarea:focus {
-border-color: var(--accent);
-box-shadow: 0 0 0 3px rgba(240, 100, 63, 0.2);
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px var(--accent-primary-subtle);
+}
+
+.notes-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+  padding-top: 8px;
 }
 
 
@@ -3079,55 +3144,67 @@ grid-template-columns: 1fr;
   }
 }
 
+.journal-calendar-grid-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  transition: opacity 0.3s ease;
+}
+
+.journal-calendar-grid-body.hidden {
+  display: none !important;
+}
+
 .view-toggle-pill-group {
-display: inline-flex;
-background: var(--bg);
-padding: 3px;
-border-radius: var(--radius-pill);
-border: 1px solid var(--hair);
-margin-right: 6px;
+  display: inline-flex;
+  align-items: center;
+  background: var(--bg);
+  padding: 3px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--hair);
+  margin: 0 2px;
 }
 
 .toggle-pill-btn {
-border: none;
-background: transparent;
-padding: 6px 14px;
-border-radius: var(--radius-pill);
-font-size: 0.82rem;
-font-weight: 600;
-color: var(--muted);
-cursor: pointer;
-display: inline-flex;
-align-items: center;
-gap: 6px;
-transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+  border: none;
+  background: transparent;
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .toggle-pill-btn:hover {
-color: var(--ink);
+  color: var(--ink);
 }
 
 .toggle-pill-btn.active {
-background: var(--paper);
-color: var(--accent);
-box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-font-weight: 700;
+  background: var(--paper);
+  color: var(--accent);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  font-weight: 700;
 }
 
 .toggle-pill-btn .toggle-icon {
-font-size: 0.95rem;
+  font-size: 0.95rem;
 }
 
 /* Journal Grid Wrapper */
 .journal-grid-wrapper {
-display: flex;
-flex-direction: column;
-gap: 16px;
-transition: opacity 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  transition: opacity 0.3s ease;
 }
 
 .journal-grid-wrapper.hidden {
-display: none !important;
+  display: none !important;
 }
 
 /* ------------------------------------------------------------
@@ -3225,141 +3302,141 @@ box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 
 /* Stage & Viewport */
 .deck-stage-wrapper {
-position: relative;
-z-index: 5;
-display: flex;
-align-items: center;
-justify-content: center;
-min-height: 460px;
-width: 100%;
-overflow: visible;
-padding: 24px 0;
+  position: relative;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 500px;
+  width: 100%;
+  overflow: visible;
+  padding: 20px 0;
 }
 
 .deck-arrow-btn {
-position: absolute;
-top: 50%;
-z-index: 10;
-width: 44px;
-height: 44px;
-border-radius: 50%;
-border: 1px solid var(--hair);
-background: var(--paper);
-color: var(--ink);
-display: flex;
-align-items: center;
-justify-content: center;
-cursor: pointer;
-transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  position: absolute;
+  top: 50%;
+  z-index: 10;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid var(--hair);
+  background: var(--paper);
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .deck-arrow-btn.prev { left: 20px; }
 .deck-arrow-btn.next { right: 20px; }
 
 .deck-arrow-btn:hover {
-background: var(--accent);
-color: #fff;
-border-color: var(--accent);
-transform: translateY(-50%) scale(1.12);
-box-shadow: 0 10px 28px rgba(223, 79, 41, 0.4);
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+  transform: translateY(-50%) scale(1.12);
+  box-shadow: 0 10px 28px rgba(223, 79, 41, 0.4);
 }
 
 .deck-arrow-btn:active {
-transform: translateY(-50%) scale(0.95);
+  transform: translateY(-50%) scale(0.95);
 }
 
 .deck-cards-viewport {
-width: 100%;
-max-width: 980px;
-height: 440px;
-position: relative;
-margin: 0 auto;
-perspective: 1400px;
-touch-action: none;
-cursor: grab;
+  width: 100%;
+  max-width: 980px;
+  height: 460px;
+  position: relative;
+  margin: 0 auto;
+  perspective: 1400px;
+  touch-action: none;
+  cursor: grab;
 }
 
 .deck-cards-viewport:active,
 .deck-cards-viewport.is-dragging {
-cursor: grabbing;
+  cursor: grabbing;
 }
 
 .deck-cards-track {
-width: 100%;
-height: 100%;
-position: relative;
-transform-style: preserve-3d;
+  width: 100%;
+  height: 100%;
+  position: relative;
+  transform-style: preserve-3d;
 }
 
 /* ------------------------------------------------------------
 NETFLIX-STYLE MICRO-ANIMATIONS & 3D CARD DECK EFFECTS
 ------------------------------------------------------------ */
 @keyframes netflixShimmer {
-0% { transform: translateX(-100%) rotate(25deg); opacity: 0; }
-30% { opacity: 1; }
-100% { transform: translateX(200%) rotate(25deg); opacity: 0; }
+  0% { transform: translateX(-100%) rotate(25deg); opacity: 0; }
+  30% { opacity: 1; }
+  100% { transform: translateX(200%) rotate(25deg); opacity: 0; }
 }
 
 @keyframes netflixRipple {
-0% {
-transform: scale(0.9);
-opacity: 0.8;
-}
-50% {
-transform: scale(1.35);
-opacity: 0.3;
-}
-100% {
-transform: scale(1.7);
-opacity: 0;
-}
+  0% {
+    transform: scale(0.9);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.35);
+    opacity: 0.3;
+  }
+  100% {
+    transform: scale(1.7);
+    opacity: 0;
+  }
 }
 
 @keyframes pulseGlow {
-0%, 100% { box-shadow: 0 0 0 0 rgba(223, 79, 41, 0.4); }
-50% { box-shadow: 0 0 0 8px rgba(223, 79, 41, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(223, 79, 41, 0.4); }
+  50% { box-shadow: 0 0 0 8px rgba(223, 79, 41, 0); }
 }
 
 @keyframes iconFloat {
-0%, 100% { transform: translateY(0) rotate(0deg); }
-50% { transform: translateY(-6px) rotate(-6deg); }
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-6px) rotate(-6deg); }
 }
 
 @keyframes netflixFadeUp {
-0% {
-opacity: 0;
-transform: translateY(14px);
-}
-100% {
-opacity: 1;
-transform: translateY(0);
-}
+  0% {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-/* Individual 3D Deck Card - Minimalist Journal Entry matching sample.mp4 */
+/* Individual 3D Deck Card - 7:5 Vertical Format (300px width x 420px height) */
 .journal-deck-card {
-position: absolute;
-top: 50%;
-left: 50%;
-width: 560px;
-max-width: 92vw;
-height: 280px;
-background: var(--card-bg, var(--paper));
-color: var(--card-ink, var(--ink));
-border: 1.5px solid rgba(255, 255, 255, 0.2);
-border-radius: 24px;
-padding: 24px 28px;
-display: flex;
-flex-direction: column;
-justify-content: space-between;
-box-shadow: 0 16px 40px rgba(0, 0, 0, 0.16);
-transform-origin: center center;
-cursor: pointer;
-overflow: hidden;
-will-change: transform, opacity, filter;
-backface-visibility: hidden;
--webkit-backface-visibility: hidden;
-transition: border-color 0.3s ease, box-shadow 0.35s ease;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 300px;
+  max-width: 88vw;
+  height: 420px;
+  background: var(--card-bg, var(--paper));
+  color: var(--card-ink, var(--ink));
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
+  border-radius: 24px;
+  padding: 24px 22px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.16);
+  transform-origin: center center;
+  cursor: pointer;
+  overflow: hidden;
+  will-change: transform, opacity, filter;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transition: border-color 0.3s ease, box-shadow 0.35s ease;
 }
 
 .journal-deck-card.is-dragging-card {
@@ -3748,7 +3825,7 @@ transform: translateY(0) scale(0.97);
   color: var(--muted);
   line-height: 1.5;
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 7;
   -webkit-box-orient: vertical;
   overflow: hidden;
   white-space: pre-wrap;

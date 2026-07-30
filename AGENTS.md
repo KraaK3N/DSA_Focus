@@ -29,10 +29,13 @@
 - 2026-07-31 — Executed `plan.md`: standardized design tokens, replaced raw system emojis with SVG icons, scaled focus timer SVG ring with Fira Code monospace countdown font, refactored header with `.btn-theme-pill`, converted dashboard to fluid responsive grid, and modernized conflict resolution modal.
 - 2026-07-31 — Refined scratchpad card: softened dot background pattern (`#e4dccb` in light mode, `rgba(255,255,255,0.08)` in dark mode), centered "SCRATCH PAD" title text in card header, and positioned clear/delete button on the right.
 - 2026-07-31 — Restored original `Bricolage Grotesque` display font for timer countdown display and stat numbers as requested.
-- 2026-07-31 — Fixed scratchpad card top spacing by scoping modal header rules to `.scratchpad-modal-card .scratchpad-header`, removing unwanted bottom line and reducing top padding.
+- 2026-07-31 — Fixed dark mode theme variable cascading by re-mapping legacy aliases (`--bg`, `--paper`, `--ink`, `--muted`, `--hair`, `--accent`, etc.) inside `body.dark-theme` so dark background and cards render properly across the whole application.
+- 2026-07-31 — Relocated Grid/Cards view toggle pill group directly into `.calendar-controls` beside the "month year" navigator display, and updated view switching to toggle between the calendar grid body + timeline wrapper and the 3D cards deck view.
+- 2026-07-31 — Redesigned the Log table Problem Notes popup modal (`#notes-sidebar`) to be a centered popup modal matching the exact dark scratchpad modal aesthetic, with a terracotta orange heading ("Save Notes"), problem subtitle, inner dark well textarea, top-right close `✕` button, and bottom-right `Cancel` / `Save` action buttons.
+- 2026-07-31 — Updated 3D deck view card dimensions to a 7:5 vertical format (300px width x 420px height) and increased text snippet clamp to 7 lines for optimal vertical reading.
 
 ## Current Focus
-- Working on: Scratchpad top header spacing adjustment completed.
+- Working on: 7:5 vertical card deck aspect ratio updated.
 - Blocked on / open question: None
 - Next up: User review and validation
 
@@ -42,6 +45,10 @@
 - **2026-07-31** — Softened scratchpad dot background grid and updated card header layout to center "SCRATCH PAD" text with delete icon aligned to the right.
 - **2026-07-31** — Restored original display font (`Bricolage Grotesque`) across timer countdown and statistic metrics.
 - **2026-07-31** — Eliminated excess top space and bottom border line on scratchpad card header.
+- **2026-07-31** — Fixed dark mode variable cascading so page background, cards, and input fields turn rich dark `#12100e`/`#1c1917` in dark mode.
+- **2026-07-31** — Positioned Grid/Cards view toggle pill group beside month/year controls and configured toggle state between Grid Calendar and 3D Cards deck.
+- **2026-07-31** — Redesigned Problem Notes modal as a centered popup matching the scratchpad modal design with backdrop blur, terracotta heading, dark inner well textarea, and Cancel / Save action buttons.
+- **2026-07-31** — Converted 3D coverflow deck cards from 2:1 horizontal to 7:5 vertical aspect ratio (300px width x 420px height) with updated drag physics and 7-line snippet clamp.
 
 ## Known Gotchas
 > Things that look like bugs but aren't, dead ends already tried, or quirks of this
