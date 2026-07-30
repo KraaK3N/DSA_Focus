@@ -1735,6 +1735,9 @@ class App {
         const btnReplaceAll = document.getElementById('btn-replace-all');
         const btnKeepAll = document.getElementById('btn-keep-all');
 
+        const btnCancelModal = document.getElementById('btn-cancel-conflict-modal');
+        const btnCancelImport = document.getElementById('btn-cancel-import');
+
         if (btnKeepExisting) btnKeepExisting.addEventListener('click', () => this.resolveConflict('skip'));
         if (btnReplaceImported) btnReplaceImported.addEventListener('click', () => this.resolveConflict('update'));
         if (btnKeepBoth) btnKeepBoth.addEventListener('click', () => this.resolveConflict('insert'));
@@ -1742,6 +1745,23 @@ class App {
         if (btnSkipAll) btnSkipAll.addEventListener('click', () => this.batchResolveAll('skip'));
         if (btnReplaceAll) btnReplaceAll.addEventListener('click', () => this.batchResolveAll('update'));
         if (btnKeepAll) btnKeepAll.addEventListener('click', () => this.batchResolveAll('insert'));
+
+        if (btnCancelModal) btnCancelModal.addEventListener('click', () => this.cancelConflictResolution());
+        if (btnCancelImport) btnCancelImport.addEventListener('click', () => this.cancelConflictResolution());
+
+        window.addEventListener('keydown', (e) => {
+            const modal = document.getElementById('conflict-modal');
+            if (e.key === 'Escape' && modal && !modal.classList.contains('hidden')) {
+                this.cancelConflictResolution();
+            }
+        });
+    }
+
+    cancelConflictResolution() {
+        const modal = document.getElementById('conflict-modal');
+        if (modal) modal.classList.add('hidden');
+        this.conflictState = null;
+        Toast.show('CSV import process cancelled.', 'info');
     }
 
     openConflictResolutionModal(staged, conflicts) {
@@ -1961,7 +1981,9 @@ class App {
     /* ─── CSV Text Fallback Parser ─────────────────────────── */
 
     parseCSVText(text) {
-        const lines = text.split(/\r?\n/);
+        if (!text) return [];
+        const cleanText = text.replace(/^\uFEFF/, '');
+        const lines = cleanText.split(/\r?\n/);
         if (lines.length < 2) return [];
 
         const parseRow = (line) => {

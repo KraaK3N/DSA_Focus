@@ -33,9 +33,12 @@
 - 2026-07-31 — Relocated Grid/Cards view toggle pill group directly into `.calendar-controls` beside the "month year" navigator display, and updated view switching to toggle between the calendar grid body + timeline wrapper and the 3D cards deck view.
 - 2026-07-31 — Redesigned the Log table Problem Notes popup modal (`#notes-sidebar`) to be a centered popup modal matching the exact dark scratchpad modal aesthetic, with a terracotta orange heading ("Save Notes"), problem subtitle, inner dark well textarea, top-right close `✕` button, and bottom-right `Cancel` / `Save` action buttons.
 - 2026-07-31 — Updated 3D deck view card dimensions to a 7:5 vertical format (300px width x 420px height) and increased text snippet clamp to 7 lines for optimal vertical reading.
+- 2026-07-31 — Added the soft dotted matrix background grid pattern (`radial-gradient`) to `.scratchpad-modal-card` across light (`#e4dccb`) and dark (`rgba(255,255,255,0.08)`) modes for all popup modals.
+- 2026-07-31 — Audited and enhanced CSV upload button and duplicate handling logic: styled Windows File Explorer copy/replace style conflict modal with side-by-side card comparison, visual diff badges, top-right close ✕ button, Escape key handling, Cancel Import button, and batch resolution actions (Keep Existing, Replace with Imported, Keep Both, Skip All, Replace All, Keep All).
+- 2026-07-31 — Adjusted Problem Notes modal popup proportions to match reference aspect ratio: reduced max-width to `460px` and increased textarea min-height to `240px`.
 
 ## Current Focus
-- Working on: 7:5 vertical card deck aspect ratio updated.
+- Working on: Notes modal popup aspect ratio updated.
 - Blocked on / open question: None
 - Next up: User review and validation
 
@@ -49,6 +52,10 @@
 - **2026-07-31** — Positioned Grid/Cards view toggle pill group beside month/year controls and configured toggle state between Grid Calendar and 3D Cards deck.
 - **2026-07-31** — Redesigned Problem Notes modal as a centered popup matching the scratchpad modal design with backdrop blur, terracotta heading, dark inner well textarea, and Cancel / Save action buttons.
 - **2026-07-31** — Converted 3D coverflow deck cards from 2:1 horizontal to 7:5 vertical aspect ratio (300px width x 420px height) with updated drag physics and 7-line snippet clamp.
+- **2026-07-31** — Applied the soft radial dotted matrix grid pattern background to `.scratchpad-modal-card` across Light and Dark themes.
+- **2026-07-31** — Simplified Problem Notes modal top text to a sleek "Save Notes" title (1.15rem), removed header border line, and eliminated background shift on textarea focus.
+- **2026-07-31** — Verified and enhanced CSV upload button & duplicate conflict resolution system. Styled Windows File Explorer-style side-by-side modal with diff badges, top-right close ✕ button, Escape key cancel support, Cancel Import button, and batch resolution actions.
+- **2026-07-31** — Resized Problem Notes modal popup container to `max-width: 460px` and set textarea `min-height: 240px` for optimal popup proportions.
 
 ## Known Gotchas
 > Things that look like bugs but aren't, dead ends already tried, or quirks of this
