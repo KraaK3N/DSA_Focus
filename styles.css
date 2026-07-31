@@ -2874,7 +2874,7 @@ body.dark-theme .notes-modal-title-input {
   background: rgba(223, 79, 41, 0.1);
   color: var(--accent);
   border-radius: var(--radius-pill);
-  font-family: var(--font-ui);
+  font-family: var(--font-mono);
   font-size: 0.8rem;
   font-weight: 700;
   border: 1px solid rgba(223, 79, 41, 0.2);
@@ -4706,10 +4706,10 @@ body.dark-theme .pace-section {
 
 .pace-count-highlight {
   color: var(--text-main);
-  font-family: var(--font-display);
+  font-family: var(--font-mono);
   font-size: 1.2rem;
-  font-weight: 800;
-  letter-spacing: -0.01em;
+  font-weight: 700;
+  letter-spacing: -0.02em;
   line-height: 1;
 }
 
@@ -4765,7 +4765,7 @@ body.dark-theme .pace-section {
   background: var(--pace-orange-soft);
   border: 1px solid rgba(220, 89, 54, 0.20);
   border-radius: 9px;
-  font-family: var(--font-ui);
+  font-family: var(--font-mono);
   font-size: 0.78rem;
   font-weight: 700;
   letter-spacing: 0;
@@ -4848,10 +4848,10 @@ body.dark-theme .pace-metric-box {
 .pace-metric-val {
   overflow: hidden;
   color: var(--text-main);
-  font-family: var(--font-display);
-  font-size: 1.25rem;
-  font-weight: 800;
-  letter-spacing: -0.01em;
+  font-family: var(--font-mono);
+  font-size: 1.18rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
   line-height: 1.1;
   text-overflow: ellipsis;
   white-space: nowrap;

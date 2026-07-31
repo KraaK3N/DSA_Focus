@@ -1305,6 +1305,12 @@ class App {
     }
 
     async saveProblemToServer(problemData, isUpdate) {
+        const btnSave = document.getElementById('btn-save-problem');
+        if (btnSave) {
+            btnSave.disabled = true;
+            btnSave.textContent = 'Saving...';
+        }
+
         try {
             const response = await fetch('http://localhost:3000/api/problems', {
                 method: 'POST',
@@ -1316,6 +1322,11 @@ class App {
         } catch (error) {
             console.error('Failed to save to server:', error);
             Toast.show('Could not save to database server. Saved locally.', 'error');
+        } finally {
+            if (btnSave) {
+                btnSave.disabled = false;
+                btnSave.textContent = 'Save Problem';
+            }
         }
     }
 
