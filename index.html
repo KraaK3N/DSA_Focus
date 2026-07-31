@@ -281,6 +281,7 @@ Clear
 <div class="pace-header-title">
 <div class="eyebrow">DSA Sheet Tracker</div>
 <h2>Pace & Completion Projection</h2>
+<p class="pace-header-summary">A clear view of how your current solving rhythm maps to the full sheet.</p>
 </div>
 
 <div class="pace-header-controls">
@@ -299,8 +300,10 @@ Clear
 <!-- Target Progress Line -->
 <div class="pace-progress-container">
 <div class="pace-progress-info">
+<div class="pace-progress-context">
+<span class="pace-progress-overline">Overall completion</span>
 <div class="pace-progress-text">
-<span class="pace-progress-title">Target Progress:</span>
+<span class="pace-progress-title">Target progress</span>
 <span id="pace-solved-display" class="pace-count-highlight"><strong id="pace-solved-count">0</strong></span>
 <button type="button" class="btn-edit-goal" id="btn-edit-solved-count" title="Set baseline total solved problems count" aria-label="Set baseline total solved problems count">
 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
@@ -310,9 +313,12 @@ Clear
 <button type="button" class="btn-edit-goal" id="btn-edit-target-total" title="Set target total problems goal" aria-label="Set target total problems goal">
 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
 </button>
-<span class="pace-subtext">problems solved (<span id="pace-percent">0%</span>)</span>
+<span class="pace-subtext">problems solved · <span id="pace-percent">0%</span></span>
 </div>
+</div>
+<div class="pace-progress-side">
 <span class="pace-remaining-badge" id="pace-remaining-badge">474 remaining</span>
+</div>
 </div>
 <div class="progress-bar-bg pace-bar-bg">
 <div class="progress-bar-fill pace-bar-fill" id="pace-progress-fill"></div>
@@ -324,6 +330,7 @@ Clear
 <div class="pace-metric-box pace-metric-velocity">
 <div class="pace-metric-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg></div>
 <div class="pace-metric-body">
+<div class="pace-metric-kicker">Current pace</div>
 <div class="pace-metric-val" id="pace-velocity-val">0.0 / week</div>
 <div class="pace-metric-label" id="pace-velocity-label">0.0 / day (7d window)</div>
 </div>
@@ -332,6 +339,7 @@ Clear
 <div class="pace-metric-box pace-metric-time">
 <div class="pace-metric-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg></div>
 <div class="pace-metric-body">
+<div class="pace-metric-kicker">Time remaining</div>
 <div class="pace-metric-val" id="pace-time-val">~0.0 weeks</div>
 <div class="pace-metric-label" id="pace-time-label">0 days remaining</div>
 </div>
@@ -340,6 +348,7 @@ Clear
 <div class="pace-metric-box pace-metric-date">
 <div class="pace-metric-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg></div>
 <div class="pace-metric-body">
+<div class="pace-metric-kicker">Finish line</div>
 <div class="pace-metric-val" id="pace-date-val">N/A</div>
 <div class="pace-metric-label" id="pace-date-label">Est. Completion Date</div>
 </div>
