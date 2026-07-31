@@ -2960,6 +2960,7 @@ class JournalManager {
                         e.target.closest('.journal-new-btn') || 
                         e.target.closest('[data-action="open-journal"]');
             if (btn) {
+                if (btn.closest('#deck-cards-viewport')) return;
                 e.preventDefault();
                 e.stopPropagation();
                 if (this.app && typeof this.app.switchTab === 'function') {
@@ -3125,17 +3126,47 @@ class JournalManager {
 
         // ─── Deck Pointer Drag / Wheel / Mouse Tilt Navigation ───
         if (this.deckViewport) {
+            const getCardAtPoint = (clientX, clientY) => {
+                const elementsAtPoint = typeof document.elementsFromPoint === "function"
+                    ? document.elementsFromPoint(clientX, clientY)
+                    : [];
+                const cardFromHitTest = elementsAtPoint.find((element) =>
+                    element.classList && element.classList.contains("journal-deck-card")
+                );
+                if (cardFromHitTest) return cardFromHitTest;
+
+                // A card can temporarily miss the browser hit test while its 3D
+                // transform is being updated. Use its rendered bounds as a stable
+                // fallback for the press that started the gesture.
+                const activeCard = this.deckTrack?.querySelector(".journal-deck-card.active-card");
+                if (!activeCard) return null;
+
+                const rect = activeCard.getBoundingClientRect();
+                return clientX >= rect.left && clientX <= rect.right &&
+                    clientY >= rect.top && clientY <= rect.bottom
+                    ? activeCard
+                    : null;
+            };
+
             // Pointer Down for Drag Physics (Horizontal Drag)
             this.deckViewport.addEventListener('pointerdown', (e) => {
                 if (this.activeView !== 'deck' || !this.deckCards || this.deckCards.length === 0) return;
                 
                 this.isPointerDownOnDeck = true;
-                this._dragPointerDownCard = e.target.closest('.journal-deck-card');
+                this._dragPointerDownCard = e.target?.closest?.('.journal-deck-card') ||
+                    getCardAtPoint(e.clientX, e.clientY);
                 this._dragPointerDownTime = Date.now();
                 this.dragStartX = e.clientX;
                 this.dragStartY = e.clientY;
                 this.dragStartScrollTarget = this.deckScrollTarget;
                 this.isDraggingDeck = false;
+                this._wasDraggingDeck = false;
+
+                // Capture from the initial press so a moving 3D card cannot
+                // redirect pointerup/pointercancel to another element.
+                try {
+                    this.deckViewport.setPointerCapture(e.pointerId);
+                } catch (err) {}
             });
 
             // Pointer Move for Continuous Drag & Realtime 3D Mouse Tilt
@@ -3153,15 +3184,15 @@ class JournalManager {
                 if (this.isPointerDownOnDeck) {
                     const deltaX = e.clientX - this.dragStartX;
                     const deltaY = e.clientY - this.dragStartY;
-                    const dist = Math.hypot(deltaX, deltaY);
+                    const absX = Math.abs(deltaX);
+                    const absY = Math.abs(deltaY);
 
-                    // Defer pointer capture until real drag movement (> 8px)
-                    if (dist > 8 && !this.isDraggingDeck) {
+                    // Require intentional horizontal drag gesture (> 28px horizontal & horizontal dominance)
+                    // This prevents normal mouse clicks while hovering from false-triggering deck drag.
+                    if (absX > 28 && absX > absY * 1.2 && !this.isDraggingDeck) {
                         this.isDraggingDeck = true;
+                        this._wasDraggingDeck = true;
                         this.deckViewport.classList.add('is-dragging');
-                        try {
-                            this.deckViewport.setPointerCapture(e.pointerId);
-                        } catch (err) {}
                     }
 
                     if (this.isDraggingDeck) {
@@ -3174,19 +3205,29 @@ class JournalManager {
                 if (!this.isPointerDownOnDeck) return;
                 this.isPointerDownOnDeck = false;
 
-                const deltaX = Math.abs(e.clientX - (this.dragStartX || e.clientX));
-                const deltaY = Math.abs(e.clientY - (this.dragStartY || e.clientY));
-                const dist = Math.hypot(deltaX, deltaY);
-                const pressDuration = Date.now() - (this._dragPointerDownTime || 0);
+                const clickedCard = this._dragPointerDownCard || (e.target ? e.target.closest('.journal-deck-card') : null);
 
                 if (this.isDraggingDeck) {
                     this.isDraggingDeck = false;
+                    this._wasDraggingDeck = true;
                     this.deckViewport.classList.remove('is-dragging');
-                    try {
-                        if (this.deckViewport.hasPointerCapture(e.pointerId)) {
-                            this.deckViewport.releasePointerCapture(e.pointerId);
+                } else {
+                    this._wasDraggingDeck = false;
+
+                    // Direct pointer release trigger: if user tapped/clicked a card without performing a drag swipe,
+                    // open the journal modal immediately regardless of browser click event quirks or 3D transform shifts.
+                    if (clickedCard) {
+                        const dateStr = clickedCard.getAttribute('data-date');
+                        const idx = parseInt(clickedCard.getAttribute('data-deck-index'), 10);
+                        if (!isNaN(idx)) {
+                            this._deckUserNavigated = true;
+                            this.deckIndex = idx;
+                            this.deckScrollTarget = idx;
                         }
-                    } catch (err) {}
+                        if (dateStr) {
+                            this.openModalForDate(dateStr);
+                        }
+                    }
                 }
 
                 this.deckScrollTarget = Math.round(this.deckScrollTarget);
@@ -3194,23 +3235,11 @@ class JournalManager {
                 this._deckUserNavigated = true;
                 this.updateDeckCounterAndPagination();
 
-                if (dist <= 8 && pressDuration < 800) {
-                    // Tap / click gesture - trigger modal popup for target card
-                    const targetCard = this._dragPointerDownCard || 
-                                       (e.target && typeof e.target.closest === 'function' ? e.target.closest('.journal-deck-card') : null);
-                    if (targetCard) {
-                        const dateStr = targetCard.getAttribute('data-date');
-                        const idx = parseInt(targetCard.getAttribute('data-deck-index'), 10);
-                        if (!isNaN(idx)) {
-                            this.deckIndex = idx;
-                            this.deckScrollTarget = idx;
-                            this.updateDeckCounterAndPagination();
-                        }
-                        if (dateStr) {
-                            this.openModalForDate(dateStr);
-                        }
+                try {
+                    if (this.deckViewport.hasPointerCapture(e.pointerId)) {
+                        this.deckViewport.releasePointerCapture(e.pointerId);
                     }
-                }
+                } catch (err) {}
             };
 
             this.deckViewport.addEventListener('pointerup', handlePointerRelease);
@@ -3219,9 +3248,6 @@ class JournalManager {
             this.deckViewport.addEventListener('pointerleave', (e) => {
                 this.deckTiltTargetX = 0;
                 this.deckTiltTargetY = 0;
-                if (this.isPointerDownOnDeck) {
-                    handlePointerRelease(e);
-                }
             });
 
             // Wheel / Trackpad Horizontal Continuous Scroll
@@ -3482,18 +3508,18 @@ class JournalManager {
                 const snippetText = this.escapeHTML(latest.content || '');
                 const wordCount = latest.content ? latest.content.trim().split(/\s+/).length : 0;
                 bodyHTML = `
-                    <div class="card-body-content" data-action="open-journal" data-date="${card.dateStr}" onclick="event.stopPropagation(); window.openJournalModal('${card.dateStr}');">
+                    <div class="card-body-content" data-action="open-journal" data-date="${card.dateStr}">
                         ${titleHTML}
                         <div class="card-entry-snippet">${snippetText}</div>
                     </div>
                     <div class="card-footer-row">
                         <span class="card-word-count">${wordCount} ${wordCount === 1 ? 'word' : 'words'}</span>
-                        <button type="button" class="btn secondary card-action-btn" data-action="open-journal" data-date="${card.dateStr}" onclick="event.stopPropagation(); window.openJournalModal('${card.dateStr}');">✏️ Open Note</button>
+                        <button type="button" class="btn secondary card-action-btn" data-action="open-journal" data-date="${card.dateStr}">✏️ Open Note</button>
                     </div>
                 `;
             } else {
                 bodyHTML = `
-                    <div class="card-body-content" data-action="open-journal" data-date="${card.dateStr}" onclick="event.stopPropagation(); window.openJournalModal('${card.dateStr}');">
+                    <div class="card-body-content" data-action="open-journal" data-date="${card.dateStr}">
                         <div class="card-empty-prompt">
                             <span class="empty-icon">✍️</span>
                             <p>No entry for this day.<br>Tap to write reflection.</p>
@@ -3501,15 +3527,14 @@ class JournalManager {
                     </div>
                     <div class="card-footer-row">
                         <span class="card-word-count">Empty day</span>
-                        <button type="button" class="btn primary card-action-btn" data-action="open-journal" data-date="${card.dateStr}" onclick="event.stopPropagation(); window.openJournalModal('${card.dateStr}');">+ Write Note</button>
+                        <button type="button" class="btn primary card-action-btn" data-action="open-journal" data-date="${card.dateStr}">+ Write Note</button>
                     </div>
                 `;
             }
 
             cardsHTML += `
                 <div class="journal-deck-card ${isActive ? 'active-card' : ''} ${card.isToday ? 'today-card' : ''}"
-                     data-deck-index="${i}" data-date="${card.dateStr}" data-action="open-journal"
-                     onclick="window.openJournalModal('${card.dateStr}');">
+                     data-deck-index="${i}" data-date="${card.dateStr}" data-action="open-journal">
                     
                     <div class="card-header-row">
                         <div class="card-date-group">
@@ -3532,30 +3557,16 @@ class JournalManager {
         // Update counter & pagination
         this.updateDeckCounterAndPagination();
 
-        // Event binding for card action buttons (+ Write Note / ✏️ Open Note) and card body content
-        this.deckTrack.querySelectorAll('.card-action-btn, .card-body-content').forEach(el => {
-            el.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                const cardEl = el.closest('.journal-deck-card');
-                const btnDate = el.getAttribute('data-date') || cardEl?.getAttribute('data-date');
-                const cardIdx = parseInt(cardEl?.getAttribute('data-deck-index'), 10);
-                if (!isNaN(cardIdx)) {
-                    this._deckUserNavigated = true;
-                    this.deckIndex = cardIdx;
-                    this.deckScrollTarget = cardIdx;
-                    this.updateDeckCounterAndPagination();
-                }
-                if (btnDate) {
-                    this.openModalForDate(btnDate);
-                }
-            });
-        });
-
-        // Event binding for clicking anywhere on journal deck cards
+        // Event binding for clicking anywhere on journal deck cards or action buttons (+ Write Note / ✏️ Open Note)
         this.deckTrack.querySelectorAll('.journal-deck-card').forEach(cardEl => {
             cardEl.addEventListener('click', (e) => {
-                if (e.target.closest('.card-action-btn') || e.target.closest('.card-body-content')) return;
+                // If a real horizontal deck drag was performed, suppress modal trigger
+                if (this._wasDraggingDeck || this.isDraggingDeck) {
+                    this._wasDraggingDeck = false;
+                    return;
+                }
+                e.preventDefault();
+                e.stopPropagation();
 
                 const dateStr = cardEl.getAttribute('data-date');
                 const idx = parseInt(cardEl.getAttribute('data-deck-index'), 10);
@@ -3565,9 +3576,10 @@ class JournalManager {
                     this.deckIndex = idx;
                     this.deckScrollTarget = idx;
                     this.updateDeckCounterAndPagination();
-                }
-                if (dateStr) {
-                    this.openModalForDate(dateStr);
+
+                    if (dateStr) {
+                        this.openModalForDate(dateStr);
+                    }
                 }
             });
         });
@@ -3855,6 +3867,13 @@ class JournalManager {
     }
 
     openModalForDate(dateStr) {
+        if (!dateStr) return;
+        if (this._lastModalOpenedDate === dateStr && (Date.now() - (this._lastModalOpenedTime || 0)) < 300) {
+            return;
+        }
+        this._lastModalOpenedDate = dateStr;
+        this._lastModalOpenedTime = Date.now();
+
         const existingEntry = (this.journals || []).find(j => j.date === dateStr);
         if (existingEntry) {
             this.openModalForEntry(existingEntry);
