@@ -1182,20 +1182,29 @@ body.dark-theme .spreadsheet-table tbody tr:hover {
 /* Edit & Delete Action Panel in table row */
 .table-actions {
   display: flex;
+  align-items: center;
   gap: 6px;
 }
 
 .table-edit-btn,
 .table-delete-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   background: var(--bg);
   border: 1px solid var(--hair);
   font-family: var(--font-display);
   font-weight: 700;
   font-size: 0.72rem;
-  padding: 3px 6px;
+  padding: 4px 8px;
   border-radius: 4px;
   cursor: pointer;
   transition: var(--transition);
+}
+
+.table-edit-btn svg,
+.table-delete-btn svg {
+  flex-shrink: 0;
 }
 
 .table-edit-btn {
@@ -1205,6 +1214,7 @@ body.dark-theme .spreadsheet-table tbody tr:hover {
 .table-edit-btn:hover {
   background: var(--paper);
   border-color: var(--blue);
+  box-shadow: 0 2px 6px rgba(59, 130, 246, 0.15);
 }
 
 .table-delete-btn {
@@ -1214,6 +1224,7 @@ body.dark-theme .spreadsheet-table tbody tr:hover {
 .table-delete-btn:hover {
   background: var(--paper);
   border-color: var(--accent);
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.15);
 }
 
 /* ---------------------------------------------------------
@@ -1462,9 +1473,10 @@ kbd {
    § 15. SCRATCHPAD CARD & NOTION-STYLE EDITOR
    ============================================================ */
 .scratchpad-card {
-  flex: 1 1 0%;
-  min-height: 250px;
-  height: auto;
+  flex: 0 0 260px;
+  height: 260px;
+  max-height: 260px;
+  min-height: 260px;
   display: flex;
   flex-direction: column;
   background: var(--bg-surface);
@@ -1475,6 +1487,7 @@ kbd {
   box-shadow: var(--shadow-sm);
   color: var(--text-main);
   padding: 10px 16px 10px;
+  overflow: hidden;
 }
 
 body.dark-theme .scratchpad-card {
@@ -1548,10 +1561,35 @@ body.dark-theme .btn-scratch-tool:hover {
   padding-right: 4px;
 }
 
+.scratchpad-body::-webkit-scrollbar {
+  width: 5px;
+}
+
+.scratchpad-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scratchpad-body::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 4px;
+}
+
+body.dark-theme .scratchpad-body::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.scratchpad-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+body.dark-theme .scratchpad-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+
 .scratchpad-editor {
   width: 100%;
-  height: 100%;
-  min-height: 140px;
+  min-height: 100%;
+  height: auto;
   outline: none;
   font-size: 0.95rem;
   line-height: 1.5;
@@ -4925,3 +4963,50 @@ body.dark-theme .pace-metric-box {
     margin: 0;
   }
 }
+
+/* Quick Edit Modal Styles */
+.quick-edit-modal-card {
+  max-width: 580px;
+}
+
+.quick-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+input[type="date"] {
+  width: 100%;
+  padding: 6px 10px;
+  font-family: var(--font-mono);
+  font-size: 0.84rem;
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--hair);
+  border-radius: var(--radius-md);
+  outline: none;
+  transition: var(--transition);
+}
+
+input[type="date"]:focus {
+  border-color: var(--ink);
+  background: var(--paper);
+}
+
+body.dark-theme input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+}
+
+.spreadsheet-table tbody tr {
+  cursor: pointer;
+}
+
+.spreadsheet-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+body.light-theme .spreadsheet-table tbody tr:hover {
+  background: rgba(0, 0, 0, 0.02);
+}
+

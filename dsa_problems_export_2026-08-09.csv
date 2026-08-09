@@ -1,7 +1,15 @@
 Date,Problem Name,URL,Platform,Difficulty,Topic,Time Spent,Hint Used,Solved Independently,Revision Required,Notes
-"2026-08-03","Delete the middle node in LL","https://leetcode.com/problems/delete-the-middle-node-of-a-linked-list/","Leetcode","Medium","LinkedList","50m 22s","No","Yes","Yes","TC - O(N);
+"2026-08-07","Add two numbers represented as Linked Lists","https://leetcode.com/problems/add-two-numbers/","LeetCode","Medium","Linked List","1h 12m 56s","Yes","Yes","Yes","TC - O(max(n,m))
+SC - O(N)"
+"2026-08-07","Add one to a number represented by LL","https://takeuforward.org/plus/dsa/problems/add-one-to-a-number-represented-by-ll?source=strivers-a2z-dsa-track","TUF","Medium","LL","33m 30s","No","Yes","Yes","TC - O(N)
+SC - O(1)"
+"2026-08-06","Find the intersection point of Y LL","https://leetcode.com/problems/intersection-of-two-linked-lists/","LeetCode","Easy","LinkedList","53m 34s","Yes","Yes","Yes","TC - O(m + n)
+SC - O(1)"
+"2026-08-03","Sort a Linked List of 0's 1's and 2's","https://takeuforward.org/plus/dsa/problems/sort-a-ll-of-0's-1's-and-2's?source=strivers-a2z-dsa-track","TUF","Medium","Linked List","1h 32m 32s","Yes","Yes","Yes","TC - O(N);
 SC - O(1);
-Don't delete the head in case of single node, since the test harness still has a reference to the head, and deleting it cause the harness to have a dangling pointer which throws out an error."
+take care of the edges case."
+"2026-08-03","Sort LL","https://leetcode.com/problems/sort-list/","LeetCode","Medium","Linked List","1h 50m 15s","Yes","Yes","Yes","TC - O(N log N) : O(N * log (N + N/2))
+SC - O(1)"
 "2026-08-03","Remove Nth node from the back of the LL","https://leetcode.com/problems/remove-nth-node-from-end-of-list/description/","Leetcode","Medium","LL","35m 23s","No","Yes","No","TC - O(N)
 SC - O(1)"
 "2026-08-02","Segregate odd and even nodes in Linked List","https://takeuforward.org/plus/dsa/problems/segregate-odd-and-even-nodes-in-ll?source=strivers-a2z-dsa-track","TUF","Medium","LL","47m 45s","No","Yes","Yes","TC - O(N)

@@ -855,6 +855,7 @@ class App {
         this.bindFilters();
         this.bindTheme();
         this.bindNotesSidebar();
+        this.bindQuickEditModal();
         this.bindGoalEvents();
         this.bindCSVImport();
         this.bindConflictModalEvents();
@@ -985,6 +986,141 @@ class App {
             backdrop.classList.add('active');
             if (textarea) textarea.focus();
         }, 10);
+    }
+
+    bindQuickEditModal() {
+        const modal = document.getElementById('quick-edit-modal');
+        const backdrop = document.getElementById('quick-edit-modal-backdrop');
+        const closeBtn = document.getElementById('quick-edit-modal-close');
+        const cancelBtn = document.getElementById('qe-cancel');
+        const form = document.getElementById('quick-edit-form');
+
+        const closeModal = () => {
+            if (!modal) return;
+            modal.classList.remove('active');
+            if (backdrop) backdrop.classList.remove('active');
+            document.body.classList.remove('body-scroll-locked');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                if (backdrop) backdrop.classList.add('hidden');
+            }, 250);
+        };
+
+        this.closeQuickEditModal = closeModal;
+
+        if (closeBtn) closeBtn.addEventListener('click', closeModal);
+        if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
+        if (backdrop) backdrop.addEventListener('click', closeModal);
+
+        if (modal) {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) closeModal();
+            });
+        }
+
+        if (form) {
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const qeId = document.getElementById('qe-id').value;
+                const problem = this.problems.find(p => p.id === qeId);
+                if (!problem) {
+                    closeModal();
+                    return;
+                }
+
+                const nameInput = document.getElementById('qe-name');
+                if (!nameInput.value.trim()) {
+                    Toast.show('Problem name is required!', 'error');
+                    nameInput.focus();
+                    return;
+                }
+
+                const timeSpentInput = document.getElementById('qe-time').value.trim() || '0m';
+                const timeSecs = this.parseTimeStringToSeconds(timeSpentInput);
+
+                problem.date = document.getElementById('qe-date').value || problem.date;
+                problem.name = nameInput.value.trim();
+                problem.url = document.getElementById('qe-url').value.trim();
+                problem.platform = document.getElementById('qe-platform').value.trim() || 'N/A';
+                problem.difficulty = document.getElementById('qe-difficulty').value;
+                problem.topic = document.getElementById('qe-topic').value.trim() || 'General';
+                problem.notes = document.getElementById('qe-notes').value.trim();
+                problem.hintUsed = document.getElementById('qe-hint').checked;
+                problem.independent = document.getElementById('qe-independent').checked;
+                problem.needsRevision = document.getElementById('qe-revision').checked;
+                problem.timeSpent = timeSpentInput;
+                problem.timeSeconds = timeSecs;
+
+                // Save locally
+                Storage.set('dsa_problems', this.problems);
+
+                // Save to backend database
+                this.saveProblemToServer(problem, true);
+
+                // Update UI & Stats
+                this.renderSpreadsheet();
+                this.updateStats();
+
+                Toast.show(`Updated entry "${problem.name}" ✓`, 'success');
+                closeModal();
+            });
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && modal && !modal.classList.contains('hidden')) {
+                closeModal();
+            }
+        });
+    }
+
+    showQuickEditModal(id) {
+        const problem = this.problems.find(p => p.id === id);
+        if (!problem) return;
+
+        const modal = document.getElementById('quick-edit-modal');
+        const backdrop = document.getElementById('quick-edit-modal-backdrop');
+        if (!modal || !backdrop) return;
+
+        document.getElementById('qe-id').value = problem.id;
+        document.getElementById('qe-date').value = problem.date || '';
+        document.getElementById('qe-time').value = problem.timeSpent || '0m';
+        document.getElementById('qe-name').value = problem.name || '';
+        document.getElementById('qe-url').value = problem.url || '';
+        document.getElementById('qe-platform').value = problem.platform || '';
+        document.getElementById('qe-difficulty').value = problem.difficulty || 'Medium';
+        document.getElementById('qe-topic').value = problem.topic || '';
+        document.getElementById('qe-hint').checked = !!problem.hintUsed;
+        document.getElementById('qe-independent').checked = !!problem.independent;
+        document.getElementById('qe-revision').checked = !!problem.needsRevision;
+        document.getElementById('qe-notes').value = problem.notes || '';
+
+        modal.classList.remove('hidden');
+        backdrop.classList.remove('hidden');
+        document.body.classList.add('body-scroll-locked');
+
+        setTimeout(() => {
+            modal.classList.add('active');
+            backdrop.classList.add('active');
+            const nameEl = document.getElementById('qe-name');
+            if (nameEl) nameEl.focus();
+        }, 10);
+    }
+
+    parseTimeStringToSeconds(str) {
+        if (!str) return 0;
+        str = str.trim();
+        let totalSecs = 0;
+        const hMatch = str.match(/(\d+)\s*h/i);
+        const mMatch = str.match(/(\d+)\s*m/i);
+        const sMatch = str.match(/(\d+)\s*s/i);
+        if (hMatch) totalSecs += parseInt(hMatch[1], 10) * 3600;
+        if (mMatch) totalSecs += parseInt(mMatch[1], 10) * 60;
+        if (sMatch) totalSecs += parseInt(sMatch[1], 10);
+        if (!hMatch && !mMatch && !sMatch) {
+            const num = parseInt(str, 10);
+            if (!isNaN(num)) totalSecs = num * 60;
+        }
+        return totalSecs;
     }
 
     bindGoalEvents() {
@@ -1451,11 +1587,22 @@ class App {
                 <td class="notes-cell" title="Click to view full notes">${displayNotes}</td>
                 <td>
                     <div class="table-actions">
-                        <button class="table-edit-btn" data-id="${p.id}">Edit</button>
-                        <button class="table-delete-btn" data-id="${p.id}">Delete</button>
+                        <button class="table-edit-btn" data-id="${p.id}" title="Quick Edit Entry">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                            <span>Edit</span>
+                        </button>
+                        <button class="table-delete-btn" data-id="${p.id}" title="Delete Log Entry">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                            <span>Delete</span>
+                        </button>
                     </div>
                 </td>
             `;
+
+            tr.addEventListener('dblclick', (e) => {
+                if (e.target.closest('a') || e.target.closest('button')) return;
+                this.showQuickEditModal(p.id);
+            });
 
             const notesCell = tr.querySelector('.notes-cell');
             if (notesCell) {
@@ -1477,7 +1624,7 @@ class App {
         tbody.querySelectorAll('.table-edit-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                this.editProblem(e.currentTarget.dataset.id);
+                this.showQuickEditModal(e.currentTarget.dataset.id);
             });
         });
     }

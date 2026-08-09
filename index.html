@@ -580,6 +580,94 @@ Clear
 </div>
 </div>
 
+<!-- Quick Edit Problem Log Entry Modal -->
+<div id="quick-edit-modal-backdrop" class="modal-backdrop hidden"></div>
+<div id="quick-edit-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="quick-edit-modal-heading">
+<div class="scratchpad-modal-card notes-modal-card quick-edit-modal-card">
+<button type="button" id="quick-edit-modal-close" class="scratchpad-close-btn" aria-label="Close modal">✕</button>
+
+<div class="notes-modal-header">
+<div>
+<div class="scratchpad-badge">
+<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+Quick Edit Entry
+</div>
+<h3 class="notes-modal-heading" id="quick-edit-modal-heading">Edit Problem Log</h3>
+</div>
+</div>
+
+<form id="quick-edit-form" autocomplete="off" class="quick-edit-form">
+<input type="hidden" id="qe-id">
+
+<div class="form-row">
+<div class="form-group">
+<label for="qe-date">Date Solved</label>
+<input type="date" id="qe-date" required>
+</div>
+<div class="form-group">
+<label for="qe-time">Time Spent</label>
+<input type="text" id="qe-time" placeholder="e.g. 20m 15s or 0m">
+</div>
+</div>
+
+<div class="form-group">
+<label for="qe-name">Problem Name</label>
+<input type="text" id="qe-name" placeholder="e.g. Two Sum" required>
+</div>
+
+<div class="form-group">
+<label for="qe-url">Problem Link (URL)</label>
+<input type="text" id="qe-url" placeholder="https://leetcode.com/problems/...">
+</div>
+
+<div class="form-row">
+<div class="form-group">
+<label for="qe-platform">Platform</label>
+<input type="text" id="qe-platform" placeholder="LeetCode, HackerRank..." required>
+</div>
+<div class="form-group">
+<label for="qe-difficulty">Difficulty</label>
+<select id="qe-difficulty">
+<option value="Easy">Easy</option>
+<option value="Medium">Medium</option>
+<option value="Hard">Hard</option>
+</select>
+</div>
+</div>
+
+<div class="form-group">
+<label for="qe-topic">Topic</label>
+<input type="text" id="qe-topic" placeholder="e.g. Binary Search, DP">
+</div>
+
+<div class="form-checkboxes">
+<label class="checkbox-label" for="qe-hint">
+<input type="checkbox" id="qe-hint">
+Used Hint?
+</label>
+<label class="checkbox-label" for="qe-independent">
+<input type="checkbox" id="qe-independent">
+Solved Independently?
+</label>
+<label class="checkbox-label" for="qe-revision">
+<input type="checkbox" id="qe-revision">
+Needs Revision?
+</label>
+</div>
+
+<div class="form-group">
+<label for="qe-notes">Notes & Key Takeaways</label>
+<textarea id="qe-notes" rows="3" placeholder="Approaches, complexities, edge cases..."></textarea>
+</div>
+
+<div class="notes-modal-footer">
+<button type="button" id="qe-cancel" class="btn secondary">Cancel</button>
+<button type="submit" id="qe-save" class="btn primary glow">Save Changes</button>
+</div>
+</form>
+</div>
+</div>
+
 <!-- Interactive Windows-Style Conflict Resolution Modal -->
 <div id="conflict-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="conflict-title">
 <div class="modal-content conflict-modal-content">
