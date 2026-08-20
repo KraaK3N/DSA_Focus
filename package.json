@@ -1,0 +1,21 @@
+{
+  "name": "dsa-focus-dashboard",
+  "version": "2.0.0",
+  "private": true,
+  "description": "DSA Focus Dashboard — Multi-user hosted application",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:server": "cd server && npm run dev",
+    "dev:client": "cd client && npm run dev",
+    "build": "cd client && npm run build",
+    "start": "cd server && npm start",
+    "migrate": "cd server && npm run migrate",
+    "seed": "cd server && npm run seed",
+    "lint": "concurrently \"npm run lint:server\" \"npm run lint:client\"",
+    "lint:server": "cd server && npm run lint",
+    "lint:client": "cd client && npm run lint"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

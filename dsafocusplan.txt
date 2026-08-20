@@ -1,0 +1,274 @@
+ Implementation Plan — DSA Focus Dashboard: Multi-User Hosted Application
+  
+  Problem Statement:
+  
+  Transform the current single-user, local DSA Focus Dashboard (Express + SQLite + vanilla JS) into a hosted multi-user web application with authentication,
+  per-user data isolation, an admin dashboard, theme preferences, and data export — all running on a single VPS with a .me domain.
+  
+  Requirements:
+  
+  1. Host on a single VPS with .me domain (name.com via GitHub Student Pack)
+  2. Authentication: Google OAuth + email/password signup
+  3. Shared PostgreSQL database with user_id columns for multi-tenancy
+  4. Admin dashboard: user management, usage analytics, content moderation
+  5. Dark/light theme preference synced to user profile (persists across devices)
+  6. Data export: users can download their data as CSV/JSON
+  7. Frontend rebuilt in React (Vite) for maintainability
+  8. Full feature set before deployment
+  
+  Background:
+  
+  - Current backend: Express.js with SQLite, serving 3 tables (problems, journals, kv) + an in-memory timer state
+  - Current frontend: Single index.html (36KB) + script.js (176KB) + styles.css (99KB) — vanilla JS with 3 tabs (Dashboard, Log, Journal)
+  - Features: Problem logging, focus timer, scratchpad, 3D journal deck, CSV import/export, calendar views, statistics
+  - The app already has a well-defined API (REST endpoints for CRUD on problems, journals, kv store, timer)
+  
+  Proposed Solution:
+  
+  graph TD
+      subgraph VPS ["VPS (.me domain)"]
+          subgraph Frontend ["React Frontend (Vite)"]
+              A[Login Page] --> B[Google OAuth]
+              A --> C[Email/Password]
+              D[Dashboard] --> E[Timer + Scratchpad]
+              D --> F[Problem Log]
+              D --> G[Journal]
+              H[Admin Panel]
+              I[Settings/Profile]
+          end
+          subgraph Backend ["Express.js API"]
+              J[Auth Middleware - JWT]
+              K[User Routes]
+              L[Problem Routes]
+              M[Journal Routes]
+              N[Timer Routes]
+              O[Admin Routes]
+              P[Export Routes]
+          end
+          subgraph DB ["PostgreSQL"]
+              Q[users table]
+              R[problems table + user_id]
+              S[journals table + user_id]
+              T[settings table + user_id]
+              U[timer_state table + user_id]
+          end
+      end
+      Frontend --> Backend --> DB
+  
+  Tech Stack:
+  
+  - Frontend: React 18 + Vite + React Router v6 + Tailwind CSS (or keep custom CSS adapted)
+  - Backend: Express.js + Passport.js (Google + Local strategy) + JWT sessions
+  - Database: PostgreSQL via pg (node-postgres)
+  - Auth: Passport.js with Google OAuth 2.0 + bcrypt for local passwords
+  - Deployment: Nginx reverse proxy + PM2 + Let's Encrypt SSL + PostgreSQL on VPS
+  
+  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  
+  Task Breakdown:
+  
+  Task 1: Project scaffolding and monorepo setup
+  
+  - Objective: Set up a clean project structure with separate client/ (React + Vite) and server/ (Express) directories, shared config, and scripts.
+  - Implementation guidance:
+    - Initialize Vite React project in client/
+    - Initialize Express project in server/ (migrate from current backend/)
+    - Add root package.json with workspace scripts (dev, build, start)
+    - Set up .env.example with placeholders for DB, OAuth, JWT secrets
+    - Add ESLint + Prettier config for both
+  
+  - Test requirements: npm run dev starts both client (port 5173) and server (port 3000) concurrently
+  - Demo: Running npm run dev launches both servers; React app shows a placeholder "Hello DSA Focus" page, Express responds to GET /api/health with { status:
+  "ok" }
+  
+  Task 2: PostgreSQL database schema and migration setup
+  
+  - Objective: Design and implement the multi-tenant PostgreSQL schema with user isolation.
+  - Implementation guidance:
+    - Install pg and a migration tool (e.g., node-pg-migrate or raw SQL files)
+    - Create migration for users table: id (UUID), email, name, avatar_url, password_hash (nullable for OAuth), provider (google/local), role (user/admin),
+  theme (light/dark), created_at, updated_at
+    - Create migration for problems table: add user_id FK, keep existing columns
+    - Create migration for journals table: add user_id FK
+    - Create migration for user_settings table: user_id, key, value (replaces kv per user)
+    - Create migration for timer_states table: user_id, time_left, total_duration, last_set_duration, is_running, is_break, saved_at
+    - Add indexes on user_id for all tables
+  
+  - Test requirements: Run migrations against a local PostgreSQL instance; verify tables are created with correct schema using a test script
+  - Demo: Running npm run migrate creates all tables; a seed script inserts a test user with sample problems/journals
+  
+  Task 3: Authentication backend — email/password registration and login
+  
+  - Objective: Implement local authentication with JWT-based sessions.
+  - Implementation guidance:
+    - Install bcrypt, jsonwebtoken, passport, passport-local
+    - Create POST /api/auth/register — validates email, hashes password, creates user, returns JWT
+    - Create POST /api/auth/login — validates credentials, returns JWT + user object
+    - Create GET /api/auth/me — returns current user from JWT
+    - Create auth middleware that extracts and verifies JWT from Authorization: Bearer header
+    - Add input validation (email format, password min length 8)
+    - Handle errors: duplicate email, invalid credentials
+  
+  - Test requirements: Unit tests for registration, login, invalid credentials, duplicate email, and token verification
+  - Demo: Using curl/Postman: register a user, login, call /api/auth/me with the token, get user data back
+  
+  Task 4: Authentication backend — Google OAuth
+  
+  - Objective: Add Google OAuth 2.0 as an alternative login method.
+  - Implementation guidance:
+    - Install passport-google-oauth20
+    - Create GET /api/auth/google — redirects to Google consent screen
+    - Create GET /api/auth/google/callback — handles OAuth callback, creates/finds user, returns JWT
+    - If a Google user's email already exists with a local account, link them (or reject with helpful message)
+    - Store google_id on user record for future logins
+    - Frontend will receive JWT via redirect URL parameter or cookie
+  
+  - Test requirements: Manual test with Google Cloud Console credentials (document setup steps); unit test for callback handler logic with mocked Google
+  profile
+  - Demo: Clicking "Sign in with Google" redirects to Google, returns to app logged in with user's name/avatar displayed
+  
+  Task 5: React frontend — routing, auth context, and login page
+  
+  - Objective: Build the login/register pages and auth state management in React.
+  - Implementation guidance:
+    - Set up React Router with routes: /login, /register, /dashboard, /admin
+    - Create AuthContext with user, login(), register(), googleLogin(), logout() methods
+    - Store JWT in localStorage, attach to API requests via axios interceptor
+    - Build Login page: email/password form + "Sign in with Google" button
+    - Build Register page: name, email, password, confirm password
+    - Add ProtectedRoute wrapper that redirects to /login if not authenticated
+    - Style to match the existing DSA Focus editorial aesthetic (warm cream, terracotta accents)
+  
+  - Test requirements: Component tests for login form validation, auth context state changes, protected route redirect
+  - Demo: User can register, login, see a protected dashboard placeholder, and logout. Google button redirects to OAuth flow.
+  
+  Task 6: Migrate core API routes to multi-tenant (problems + journals)
+  
+  - Objective: Refactor all existing CRUD endpoints to be user-scoped.
+  - Implementation guidance:
+    - Add auth middleware to all /api/problems and /api/journals routes
+    - Modify queries to filter by user_id from JWT payload
+    - GET /api/problems → only returns current user's problems
+    - POST /api/problems → assigns user_id from auth
+    - DELETE /api/problems/:id → verify ownership before deleting
+    - Same pattern for journals
+    - Migrate timer state from in-memory to timer_states table (per user)
+    - Migrate kv store to user_settings table (per user)
+  
+  - Test requirements: Integration tests verifying user A cannot access user B's data; test ownership checks on delete
+  - Demo: Two different users log in and each see only their own problems and journals; timer state persists per user across browser refreshes
+  
+  Task 7: React frontend — Dashboard tab (Timer + Scratchpad + Stats)
+  
+  - Objective: Rebuild the Dashboard tab in React, replicating existing functionality.
+  - Implementation guidance:
+    - Create components: Timer (SVG ring + controls), Scratchpad (dot-matrix textarea), StatsGrid (problems solved, streak, pace)
+    - Port the timer logic (countdown, break mode, duration picker) from script.js
+    - Connect to /api/timer endpoints for persistence
+    - Connect stats to /api/problems data (calculate streak, total solved, daily pace)
+    - Replicate the 3-column layout with CSS Grid
+    - Port existing styles (or adapt with CSS modules / Tailwind)
+  
+  - Test requirements: Timer unit tests (countdown logic, pause/resume, break toggle); stats calculation tests
+  - Demo: Logged-in user sees full dashboard with working timer, scratchpad, and live statistics calculated from their problem data
+  
+  Task 8: React frontend — Log tab (Problem form + Table)
+  
+  - Objective: Rebuild the problem logging form and searchable/filterable table.
+  - Implementation guidance:
+    - Create ProblemForm component with all fields (name, URL, platform, difficulty, topic, notes, checkboxes, time)
+    - Create ProblemTable with sorting, filtering (by difficulty, platform, topic), and search
+    - Wire CRUD operations: add, edit (populate form), delete with confirmation
+    - Add CSV import functionality (PapaParse in React)
+    - Handle conflict resolution on CSV import (existing modal logic)
+  
+  - Test requirements: Form validation tests; table filter/sort tests; CSV import parsing tests
+  - Demo: User can add a problem, see it in the table, filter by difficulty, edit it, delete it, and import from CSV
+  
+  Task 9: React frontend — Journal tab (3D Deck + Calendar)
+  
+  - Objective: Rebuild the journal view with the 3D card deck and calendar.
+  - Implementation guidance:
+    - Create JournalDeck component with 3D perspective CSS transforms and swipe/drag interaction
+    - Create JournalEditor modal for creating/editing entries
+    - Create Calendar component showing daily activity
+    - Wire to /api/journals endpoints
+    - Port the 3D physics/animation logic from existing JS
+  
+  - Test requirements: Journal CRUD tests; calendar date rendering tests
+  - Demo: User can browse journal entries in the 3D deck, create new entries, and see activity on the calendar
+  
+  Task 10: Theme sync — dark/light mode persisted to profile
+  
+  - Objective: Implement theme preference that saves to the user's profile and applies across devices.
+  - Implementation guidance:
+    - Add PATCH /api/auth/me endpoint to update user preferences (theme, etc.)
+    - Create ThemeContext in React that reads user's saved theme on login
+    - Theme toggle button updates both local state and server
+    - Apply theme via CSS variables (port existing light/dark CSS custom properties)
+    - On first load (before auth), respect prefers-color-scheme; after login, use saved preference
+  
+  - Test requirements: Test theme persistence round-trip (change → reload → verify); test default behavior before login
+  - Demo: User toggles to dark mode, refreshes page — stays dark. Logs in on a different browser — theme is dark there too.
+  
+  Task 11: Data export feature
+  
+  - Objective: Let users export their data in CSV and JSON formats.
+  - Implementation guidance:
+    - Create GET /api/export/problems?format=csv|json — returns user's problems
+    - Create GET /api/export/journals?format=csv|json — returns user's journals
+    - Create GET /api/export/all?format=json — full data dump (problems + journals + settings)
+    - Frontend: Add export buttons in Settings/Profile page with format selector
+    - Generate proper file downloads with correct MIME types and filenames
+  
+  - Test requirements: Test export endpoints return correct format; verify CSV headers match; test auth requirement
+  - Demo: User clicks "Export Problems as CSV" → downloads a properly formatted CSV file with all their logged problems
+  
+  Task 12: Admin dashboard — user management and analytics
+  
+  - Objective: Build an admin-only panel for managing users and viewing platform analytics.
+  - Implementation guidance:
+    - Create admin middleware: checks user.role === 'admin'
+    - API routes:
+      - GET /api/admin/users — paginated user list with activity stats
+      - PATCH /api/admin/users/:id — update role, disable account
+      - GET /api/admin/analytics — total users, active users (last 7d), total problems solved, top topics
+      - DELETE /api/admin/users/:id — delete user + cascade data
+  
+    - React AdminPanel page with:
+      - User table (searchable, sortable) with action buttons (disable/delete/change role)
+      - Analytics cards (total users, active users, problems solved today/week/all-time)
+      - Simple charts (e.g., new signups over time, problems per day) using a lightweight chart lib (Recharts)
+  
+    - Content moderation: ability to view any user's data if flagged
+  
+  - Test requirements: Admin route authorization tests (non-admin gets 403); analytics query tests
+  - Demo: Admin logs in, sees user list with stats, can disable a user account, views platform analytics with charts
+  
+  Task 13: VPS deployment setup
+  
+  - Objective: Deploy the full application on a VPS with the .me domain, SSL, and production configuration.
+  - Implementation guidance:
+    - Document VPS setup: Ubuntu, Node.js 20 LTS, PostgreSQL 16, Nginx, PM2, Certbot
+    - Nginx config: reverse proxy /api to Express (port 3000), serve React build for all other routes
+    - PM2 ecosystem file for process management
+    - SSL via Let's Encrypt (Certbot with Nginx plugin)
+    - DNS: point .me domain A record to VPS IP
+    - Environment variables: production DB credentials, Google OAuth callback URL, JWT secret
+    - Build pipeline: npm run build (Vite) → static files served by Nginx
+    - Add rate limiting (express-rate-limit) and helmet for security headers
+    - Set up PostgreSQL backups (pg_dump cron job)
+  
+  - Test requirements: Smoke test all endpoints on production URL; verify SSL certificate; test OAuth callback on production domain
+  - Demo: App is live at https://yourdomain.me — users can register, login with Google, use the full dashboard, and admin panel is accessible
+  
+  Task 14: Data migration script and seed data
+  
+  - Objective: Migrate existing SQLite data to the new PostgreSQL database and provide seed data for testing.
+  - Implementation guidance:
+    - Write a migration script that reads from dsa_problems.db (SQLite) and inserts into PostgreSQL under a specified user account
+    - Create a seed script for development: generates fake users with sample problems/journals
+    - Document the migration process for the user's existing data
+  
+  - Test requirements: Verify all existing problems and journals transfer correctly with no data loss; compare row counts
+  - Demo: Run the migration script → existing data appears under your account in the new app; verify counts match
