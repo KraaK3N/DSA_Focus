@@ -13,7 +13,12 @@
     "seed": "cd server && npm run seed",
     "lint": "concurrently \"npm run lint:server\" \"npm run lint:client\"",
     "lint:server": "cd server && npm run lint",
-    "lint:client": "cd client && npm run lint"
+    "lint:client": "cd client && npm run lint",
+    "docker:up": "docker compose up -d --build",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f",
+    "docker:migrate": "docker compose exec server npm run migrate",
+    "docker:seed": "docker compose exec server npm run seed"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"

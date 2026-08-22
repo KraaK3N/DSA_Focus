@@ -127,7 +127,7 @@ export default function AdminPage() {
                 onChange={(e) => setSearch(e.target.value)}
                 className="search-input"
               />
-              <button type="submit" className="btn btn-secondary btn-sm">Search</button>
+              <button type="submit" className="btn secondary sm">Search</button>
             </form>
           </div>
 
@@ -186,7 +186,7 @@ export default function AdminPage() {
           {pagination.pages > 1 && (
             <div className="admin-pagination">
               <button
-                className="btn btn-secondary btn-sm"
+                className="btn secondary sm"
                 disabled={pagination.page === 1}
                 onClick={() => fetchUsers(pagination.page - 1)}
               >
@@ -196,7 +196,7 @@ export default function AdminPage() {
                 Page {pagination.page} of {pagination.pages} ({pagination.total} users)
               </span>
               <button
-                className="btn btn-secondary btn-sm"
+                className="btn secondary sm"
                 disabled={pagination.page >= pagination.pages}
                 onClick={() => fetchUsers(pagination.page + 1)}
               >

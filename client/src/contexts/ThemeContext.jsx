@@ -24,6 +24,13 @@ export function ThemeProvider({ children }) {
   // Apply theme to document
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
+    if (theme === 'dark') {
+      document.body.classList.add('dark-theme');
+      document.documentElement.classList.add('dark-theme');
+    } else {
+      document.body.classList.remove('dark-theme');
+      document.documentElement.classList.remove('dark-theme');
+    }
   }, [theme]);
 
   async function toggleTheme() {

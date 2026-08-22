@@ -1,108 +1,191 @@
-import { useState, useEffect } from 'react';
-import api from '../utils/api';
+import React from 'react';
 
-export default function StatsGrid() {
-  const [stats, setStats] = useState({
-    totalSolved: 0,
-    streak: 0,
-    todayCount: 0,
-    avgPerDay: 0,
-    topTopic: 'N/A',
-    totalTime: '0h',
+const RADIUS = 40;
+const CIRCUM = 2 * Math.PI * RADIUS; // ~251.327
+
+export default function StatsGrid({ problems = [] }) {
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+  let todayCount = 0;
+  let todaySeconds = 0;
+  let totalSeconds = 0;
+  let easyCount = 0;
+  let mediumCount = 0;
+  let hardCount = 0;
+  const uniqueDates = new Set();
+
+  problems.forEach((p) => {
+    const sec = p.time_seconds || p.timeSeconds || 0;
+    if (p.date === todayStr) {
+      todayCount++;
+      todaySeconds += sec;
+    }
+    totalSeconds += sec;
+    if (p.difficulty === 'Easy') easyCount++;
+    else if (p.difficulty === 'Medium') mediumCount++;
+    else if (p.difficulty === 'Hard') hardCount++;
+    if (p.date) uniqueDates.add(p.date);
   });
 
-  useEffect(() => {
-    async function fetchStats() {
-      try {
-        const { data: problems } = await api.get('/problems');
-        calculateStats(problems);
-      } catch { /* ignore */ }
-    }
-    fetchStats();
-  }, []);
+  const total = problems.length;
 
-  function calculateStats(problems) {
-    if (!problems || problems.length === 0) {
-      setStats({ totalSolved: 0, streak: 0, todayCount: 0, avgPerDay: 0, topTopic: 'N/A', totalTime: '0h' });
-      return;
-    }
+  // Calculate Streak using local midnight
+  const sortedDates = Array.from(uniqueDates).sort((a, b) => b.localeCompare(a));
+  let streak = 0;
+  const todayRef = new Date();
+  let checkDate = new Date(todayRef.getFullYear(), todayRef.getMonth(), todayRef.getDate());
 
-    const today = new Date().toISOString().split('T')[0];
-    const todayCount = problems.filter((p) => p.date === today).length;
+  for (let i = 0; i < sortedDates.length; i++) {
+    const parts = sortedDates[i].split('-');
+    const pDate = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+    const diffDays = Math.round((checkDate - pDate) / (1000 * 60 * 60 * 24));
 
-    // Calculate streak
-    let streak = 0;
-    const dates = [...new Set(problems.map((p) => p.date))].sort().reverse();
-    const todayDate = new Date(today);
-
-    for (let i = 0; i < dates.length; i++) {
-      const expected = new Date(todayDate);
-      expected.setDate(expected.getDate() - i);
-      const expectedStr = expected.toISOString().split('T')[0];
-
-      if (dates[i] === expectedStr) {
-        streak++;
-      } else {
-        break;
-      }
-    }
-
-    // Top topic
-    const topicCounts = {};
-    problems.forEach((p) => {
-      topicCounts[p.topic] = (topicCounts[p.topic] || 0) + 1;
-    });
-    const topTopic = Object.entries(topicCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'N/A';
-
-    // Average per day
-    if (dates.length > 0) {
-      const first = new Date(dates[dates.length - 1]);
-      const daysDiff = Math.max(1, Math.ceil((todayDate - first) / 86400000));
-      var avgPerDay = (problems.length / daysDiff).toFixed(1);
+    if (diffDays === 0 || diffDays === 1) {
+      streak++;
+      checkDate = new Date(pDate);
+      checkDate.setDate(checkDate.getDate() - 1);
     } else {
-      var avgPerDay = 0;
+      break;
     }
+  }
 
-    // Total time
-    const totalSeconds = problems.reduce((sum, p) => sum + (p.time_seconds || p.timeSeconds || 0), 0);
-    const hours = Math.floor(totalSeconds / 3600);
-    const mins = Math.floor((totalSeconds % 3600) / 60);
-    const totalTime = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+  // Today focus time string
+  const todayMinutes = Math.round(todaySeconds / 60);
+  const todayFocusStr = todayMinutes >= 60
+    ? `${Math.floor(todayMinutes / 60)}h ${todayMinutes % 60}m`
+    : `${todayMinutes}m`;
 
-    setStats({
-      totalSolved: problems.length,
-      streak,
-      todayCount,
-      avgPerDay,
-      topTopic,
-      totalTime,
-    });
+  // Avg time string
+  let avgStr = '0m';
+  if (total > 0) {
+    const avgSecs = Math.round(totalSeconds / total);
+    const avgMins = Math.round(avgSecs / 60);
+    avgStr = avgMins > 0 ? `${avgMins}m` : `${avgSecs}s`;
+  }
+
+  // Ring arc calculations
+  let easyDasharray = `0 ${CIRCUM}`;
+  let medDasharray = `0 ${CIRCUM}`;
+  let hardDasharray = `0 ${CIRCUM}`;
+  let medOffset = 0;
+  let hardOffset = 0;
+
+  if (total > 0) {
+    const lenEasy = (easyCount / total) * CIRCUM;
+    const lenMed = (mediumCount / total) * CIRCUM;
+    const lenHard = (hardCount / total) * CIRCUM;
+
+    const activeTypes = (easyCount > 0 ? 1 : 0) + (mediumCount > 0 ? 1 : 0) + (hardCount > 0 ? 1 : 0);
+    const gap = activeTypes > 1 ? 4 : 0;
+
+    const showLenEasy = lenEasy > 0 ? Math.max(0, lenEasy - gap) : 0;
+    const showLenMed = lenMed > 0 ? Math.max(0, lenMed - gap) : 0;
+    const showLenHard = lenHard > 0 ? Math.max(0, lenHard - gap) : 0;
+
+    easyDasharray = `${showLenEasy} ${CIRCUM}`;
+    medDasharray = `${showLenMed} ${CIRCUM}`;
+    hardDasharray = `${showLenHard} ${CIRCUM}`;
+
+    medOffset = -lenEasy;
+    hardOffset = -(lenEasy + lenMed);
   }
 
   return (
-    <div className="stats-card card">
-      <span className="eyebrow">Statistics</span>
-      <div className="stats-grid">
-        <div className="stat-box" data-accent="orange">
-          <span className="stat-value">{stats.totalSolved}</span>
-          <span className="stat-label">Problems Solved</span>
+    <div className="card stats-grid-card" id="stats-grid-card">
+      <div className="eyebrow">Statistics</div>
+      <h2>Daily Performance</h2>
+
+      {/* DSA Progress Widget matching v1_df */}
+      <div className="dsa-progress-box">
+        <div className="dsa-progress-header">
+          <span className="dsa-progress-badge">DSA Progress</span>
         </div>
-        <div className="stat-box" data-accent="sage">
-          <span className="stat-value">{stats.streak}</span>
-          <span className="stat-label">Day Streak</span>
-        </div>
-        <div className="stat-box" data-accent="blue">
-          <span className="stat-value">{stats.todayCount}</span>
-          <span className="stat-label">Today</span>
-        </div>
-        <div className="stat-box" data-accent="orange-deep">
-          <span className="stat-value">{stats.avgPerDay}</span>
-          <span className="stat-label">Avg / Day</span>
+        <div className="dsa-progress-body">
+          <div className="dsa-ring-wrapper">
+            <svg className="dsa-ring-svg" width="110" height="110" viewBox="0 0 100 100">
+              <circle className="dsa-ring-bg" strokeWidth="8" fill="transparent" r={RADIUS} cx="50" cy="50" />
+              <circle
+                className="dsa-ring-easy"
+                id="dsa-arc-easy"
+                strokeWidth="8"
+                fill="transparent"
+                r={RADIUS}
+                cx="50"
+                cy="50"
+                style={{ strokeDasharray: easyDasharray, strokeDashoffset: 0 }}
+              />
+              <circle
+                className="dsa-ring-medium"
+                id="dsa-arc-medium"
+                strokeWidth="8"
+                fill="transparent"
+                r={RADIUS}
+                cx="50"
+                cy="50"
+                style={{ strokeDasharray: medDasharray, strokeDashoffset: `${medOffset}px` }}
+              />
+              <circle
+                className="dsa-ring-hard"
+                id="dsa-arc-hard"
+                strokeWidth="8"
+                fill="transparent"
+                r={RADIUS}
+                cx="50"
+                cy="50"
+                style={{ strokeDasharray: hardDasharray, strokeDashoffset: `${hardOffset}px` }}
+              />
+            </svg>
+            <div className="dsa-ring-center">
+              <span className="dsa-total-num" id="stat-total">{total}</span>
+              <span className="dsa-total-line"></span>
+              <span className="dsa-total-label">Solved</span>
+            </div>
+          </div>
+          <div className="dsa-diff-list">
+            <div className="diff-item">
+              <div className="diff-left">
+                <span className="diff-dot easy"></span>
+                <span className="diff-name">Easy</span>
+              </div>
+              <span className="diff-val" id="stat-easy">{easyCount}</span>
+            </div>
+            <div className="diff-item">
+              <div className="diff-left">
+                <span className="diff-dot medium"></span>
+                <span className="diff-name">Medium</span>
+              </div>
+              <span className="diff-val" id="stat-medium">{mediumCount}</span>
+            </div>
+            <div className="diff-item">
+              <div className="diff-left">
+                <span className="diff-dot hard"></span>
+                <span className="diff-name">Hard</span>
+              </div>
+              <span className="diff-val" id="stat-hard">{hardCount}</span>
+            </div>
+          </div>
         </div>
       </div>
-      <div className="stats-footer">
-        <span className="stat-meta">⏱ {stats.totalTime} total</span>
-        <span className="stat-meta">📚 Top: {stats.topTopic}</span>
+
+      {/* 4 Stat Boxes matching v1_df */}
+      <div className="stats-grid grid-4">
+        <div className="stat-box" data-accent="sage">
+          <div className="stat-value" id="stat-today">{todayCount}</div>
+          <div className="stat-label">Solved Today</div>
+        </div>
+        <div className="stat-box" data-accent="blue">
+          <div className="stat-value" id="stat-time">{todayFocusStr}</div>
+          <div className="stat-label">Today's Focus</div>
+        </div>
+        <div className="stat-box" data-accent="orange">
+          <div className="stat-value" id="stat-avg">{avgStr}</div>
+          <div className="stat-label">Avg Time</div>
+        </div>
+        <div className="stat-box" data-accent="orange-deep">
+          <div className="stat-value streak" id="stat-streak">{streak}</div>
+          <div className="stat-label">Streak (days)</div>
+        </div>
       </div>
     </div>
   );
